@@ -94,18 +94,18 @@ service cloud.firestore {
     }
 
     // SUPPORT
-    match /supportOptions/{document=**} {
+    match /supportOptions/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    match /supportTickets/{document=**} {
+    match /supportTickets/{id} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
     // NOTIFICATIONS
-    match /notifications/{document=**} {
+    match /notifications/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }

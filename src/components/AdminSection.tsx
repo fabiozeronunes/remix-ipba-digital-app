@@ -108,6 +108,7 @@ export default function AdminSection({
   const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options'>(() => {
     return (localStorage.getItem('church_admin_active_subtab') as any) || 'events';
   });
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: string, action: () => void, name: string } | null>(null);
   const [openCargoDropdownId, setOpenCargoDropdownId] = useState<string | null>(null);
 
   // Support Feature Admin states
@@ -2079,10 +2080,7 @@ export default function AdminSection({
 
                           <button
                             type="button"
-                            onClick={() => {
-                              onDeleteEvent(ev.id);
-                              onShowAlert(`Atividade "${ev.title}" removida.`);
-                            }}
+                            onClick={() => setConfirmDelete({ id: ev.id, type: 'Evento', action: () => { onDeleteEvent(ev.id); onShowAlert(`Atividade "${ev.title}" removida.`); }, name: ev.title })}
                             className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
                             title="Excluir Atividade"
                           >
@@ -3440,10 +3438,7 @@ export default function AdminSection({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            onDeleteCell(gp.id);
-                            onShowAlert(`Célula "${gp.title}" removida.`);
-                          }}
+                          onClick={() => setConfirmDelete({ id: gp.id, type: 'Célula', action: () => { onDeleteCell(gp.id); onShowAlert(`Célula "${gp.title}" removida.`); }, name: gp.title })}
                           className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
                           title="Excluir Célula"
                         >
@@ -4412,6 +4407,19 @@ export default function AdminSection({
         </div>
       </div>
 
+      {/* Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-lg font-bold">Excluir {confirmDelete.type}?</h3>
+            <p className="text-slate-600">Tem certeza que deseja excluir "{confirmDelete.name}"? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-3 mt-4">
+              <button className="flex-1 px-4 py-2 bg-slate-100 rounded-lg text-slate-700 font-bold" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+              <button className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-bold" onClick={() => { confirmDelete.action(); setConfirmDelete(null); }}>Confirmar Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

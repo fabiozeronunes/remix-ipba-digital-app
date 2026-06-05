@@ -125,7 +125,7 @@ export default function App() {
   const [prayers, setPrayers] = useState<PrayerRequest[]>(() => INITIAL_PRAYER_REQUESTS);
   const [contributions, setContributions] = useState<Contribution[]>(() => INITIAL_CONTRIBUTIONS);
   const [cells, setCells] = useState<Cell[]>(() => INITIAL_CELLS);
-  const [events, setEvents] = useState<ChurchEvent[]>(() => INITIAL_EVENTS);
+  const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [studies, setStudies] = useState<ChurchStudy[]>(() => INITIAL_STUDIES);
   const [radioPrograms, setRadioPrograms] = useState<RadioProgram[]>(() => INITIAL_RADIO_PROGRAMS);
   const [transmissions, setTransmissions] = useState<any[]>([]);
