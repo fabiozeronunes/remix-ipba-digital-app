@@ -1,0 +1,8 @@
+{
+  "name": "Remix: IPBA Digital",
+  "description": "Aplicativo oficial IPB Digital para acompanhamento de cultos, células, contribuições, pedidos de oração e perfil dos membros.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

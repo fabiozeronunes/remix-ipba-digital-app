@@ -1,0 +1,33 @@
+import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram, SupportOption, SupportTicket, Notification } from '../types';
+  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options' | 'notifications'>(() => {
+  const [notificationsList, setNotificationsList] = useState<Notification[]>([]);
+    const unsub = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
+      setNotificationsList(fetched);
+      console.error('Notifications snapshot error:', error);
+      handleFirestoreError(error, OperationType.LIST, 'notifications');
+  const [evNotificar, setEvNotificar] = useState(false);
+      notificarDiariamente: evNotificar,
+    setEvNotificar(false);
+  const [editEvNotificar, setEditEvNotificar] = useState(false);
+          onClick={() => setActiveSubTab('notifications')}
+            activeSubTab === 'notifications' ? 'bg-[#002d5e] text-amber-400 font-extrabold shadow' : 'text-slate-500 hover:bg-slate-50'
+          <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Notificações 🔔</span>
+                    checked={evNotificar}
+                    onChange={(e) => setEvNotificar(e.target.checked)}
+                  Notificar diariamente
+                            notificarDiariamente: editEvNotificar,
+                             <label className="text-[9px] text-[#2c323f]/50 font-black uppercase tracking-wider block">Notificar</label>
+                               checked={editEvNotificar}
+                               onChange={(e) => setEditEvNotificar(e.target.checked)}
+                               checked={editEvNotificar}
+                               onChange={(e) => setEditEvNotificar(e.target.checked)}
+                             Notificar diariamente
+                              setEditEvNotificar(!!ev.notificarDiariamente);
+      {activeSubTab === 'notifications' && (
+              <span>Enviar Nova Notificação aos Membros</span>
+                  await addDoc(collection(db, 'notifications'), {
+                  onShowAlert("Notificação enviada!");
+                  onShowAlert("Erro ao enviar notificação.");
+            <h3 className="font-extrabold text-[#001939] text-base border-b border-slate-100 pb-2">Histórico de Notificações</h3>
+              {notificationsList.map(n => (

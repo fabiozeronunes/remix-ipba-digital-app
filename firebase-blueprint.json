@@ -1,0 +1,257 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a member of the church.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "category": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "planCount": { "type": "number" },
+        "prayerCount": { "type": "number" },
+        "eventCount": { "type": "number" },
+        "birthDate": { "type": "string" },
+        "address": { "type": "string" },
+        "ministry": { "type": "string" },
+        "password": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Pendente", "Suspenso"] },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "email"]
+    },
+    "PrayerRequest": {
+      "title": "PrayerRequest",
+      "description": "Represents a prayer request made by a church member.",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["Saúde", "Gratidão", "Família", "Espiritual", "Finanças"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "timeAgo": { "type": "string" },
+        "count": { "type": "number" },
+        "visibilidade": { "type": "string", "enum": ["Público", "Pastoral"] },
+        "userOred": { "type": "boolean" },
+        "authorName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "aprovado": { "type": "boolean" },
+        "authorEmail": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["category", "title", "description", "visibilidade", "authorName"]
+    },
+    "Cell": {
+      "title": "Cell",
+      "description": "Represents a small group/cell of the church.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "leaderName": { "type": "string" },
+        "leaderAvatar": { "type": "string" },
+        "schedule": { "type": "string" },
+        "address": { "type": "string" },
+        "neighborhood": { "type": "string" },
+        "distance": { "type": "string" },
+        "joined": { "type": "boolean" },
+        "city": { "type": "string" },
+        "members": { "type": "array" }
+      },
+      "required": ["title", "leaderName", "schedule", "address"]
+    },
+    "Contribution": {
+      "title": "Contribution",
+      "description": "Represents money contribution or tithe.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "amountVal": { "type": "number" },
+        "category": { "type": "string", "enum": ["Dízimo", "Oferta", "Missões", "Obra Social", "Evento"] },
+        "method": { "type": "string", "enum": ["Pix"] },
+        "userEmail": { "type": "string" }
+      },
+      "required": ["title", "amountVal", "category", "method", "userEmail"]
+    },
+    "ChurchEvent": {
+      "title": "ChurchEvent",
+      "description": "Represents an event at the church.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "dateStr": { "type": "string" },
+        "day": { "type": "number" },
+        "month": { "type": "string" },
+        "timeStr": { "type": "string" },
+        "timeEnd": { "type": "string" },
+        "location": { "type": "string" },
+        "address": { "type": "string" },
+        "description": { "type": "string" },
+        "going": { "type": "boolean" },
+        "isPaid": { "type": "boolean" },
+        "value": { "type": "number" },
+        "confirmedUsers": { "type": "array" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "dateStr"]
+    },
+    "ChurchStudy": {
+      "title": "ChurchStudy",
+      "description": "Represents theological or pastoral studies.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "authorName": { "type": "string" },
+        "dateStr": { "type": "string" },
+        "content": { "type": "string" },
+        "attachmentUrl": { "type": "string" },
+        "attachmentName": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "audioName": { "type": "string" },
+        "tags": { "type": "array" }
+      },
+      "required": ["title", "authorName", "content"]
+    },
+    "RadioProgram": {
+      "title": "RadioProgram",
+      "description": "Represents a radio program of IPBA.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "speaker": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "audioName": { "type": "string" },
+        "scheduledTime": { "type": "string" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["title", "speaker", "audioUrl"]
+    },
+    "Transmission": {
+      "title": "Transmission",
+      "description": "Represents a live broadcast or video transmission.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "youtubeUrl": { "type": "string" },
+        "isLive": { "type": "boolean" },
+        "viewerCount": { "type": "number" },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "youtubeUrl"]
+    },
+    "CustomRole": {
+      "title": "CustomRole",
+      "description": "Represents a custom ecclesiastical role configuration.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "TransmissionChat": {
+      "title": "TransmissionChat",
+      "description": "Represents a chat message sent during a broadcast.",
+      "type": "object",
+      "properties": {
+        "transmissionId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["transmissionId", "authorName", "message"]
+    },
+    "SupportOption": {
+      "title": "SupportOption",
+      "description": "Represents an option of the support issues selector configured by administrators.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Represents a support ticket/request submitted by a user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["name", "category", "text"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Represents a push-like notification for all members.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "adminEmail": { "type": "string" }
+      },
+      "required": ["title", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles within IPBA Digital."
+    },
+    "/prayers/{prayerId}": {
+      "schema": "PrayerRequest",
+      "description": "Intercessions and prayer requests."
+    },
+    "/cells/{cellId}": {
+      "schema": "Cell",
+      "description": "Cells and home church groups."
+    },
+    "/contributions/{contributionId}": {
+      "schema": "Contribution",
+      "description": "Tithes and financial contributions of church members."
+    },
+    "/events/{eventId}": {
+      "schema": "ChurchEvent",
+      "description": "Church events, dates, and confirmed participations."
+    },
+    "/studies/{studyId}": {
+      "schema": "ChurchStudy",
+      "description": "Theological studies and teaching resources."
+    },
+    "/radioPrograms/{radioProgramId}": {
+      "schema": "RadioProgram",
+      "description": "Listen to pre-scheduled programs or devotionals."
+    },
+    "/transmissions/{transmissionId}": {
+      "schema": "Transmission",
+      "description": "Live stream transmissions and records."
+    },
+    "/customRoles/{roleId}": {
+      "schema": "CustomRole",
+      "description": "Custom church leadership roles."
+    },
+    "/transmissionChats/{chatId}": {
+      "schema": "TransmissionChat",
+      "description": "Interactive chat logs for live transmissions."
+    },
+    "/supportOptions/{optionId}": {
+      "schema": "SupportOption",
+      "description": "Configurable dropdown options for the support page."
+    },
+    "/supportTickets/{ticketId}": {
+      "schema": "SupportTicket",
+      "description": "Support tickets submitted by users."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Global notifications for all members."
+    }
+  }
+}
