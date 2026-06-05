@@ -139,52 +139,7 @@ export const INITIAL_CONTRIBUTIONS: Contribution[] = [
   }
 ];
 
-export const INITIAL_EVENTS: ChurchEvent[] = [
-  {
-    id: 'ev-1',
-    title: 'Encontro de Casais com Cristo',
-    dateStr: 'Sab, 30 de Maio',
-    day: 30,
-    month: 'Mai',
-    timeStr: '19:30',
-    location: 'Salão Social Presbiteriano',
-    description: 'Um momento especial de comunhão, oração e fortalecimento matrimonial sob o direcionamento pastoral.',
-    going: true,
-  },
-  {
-    id: 'ev-2',
-    title: 'Treinamento de Liderança de Células',
-    dateStr: 'Sab, 06 de Junho',
-    day: 6,
-    month: 'Jun',
-    timeStr: '09:00',
-    location: 'Auditório Anexo',
-    description: 'Alinhamento ministerial para líderes e futuros líderes, focado na expansão saudável de nossos Pequenos Grupos.',
-    going: false,
-  },
-  {
-    id: 'ev-3',
-    title: 'Congresso Anual SAF (Sociedade Auxiliadora Feminina)',
-    dateStr: 'Sex a Dom, 12-14 de Junho',
-    day: 12,
-    month: 'Jun',
-    timeStr: '19:00',
-    location: 'Templo Principal',
-    description: 'Pregações exclusivas, louvor especial e workshops de serviço espiritual coordenados pelas mulheres de nossa comunidade.',
-    going: true,
-  },
-  {
-    id: 'ev-4',
-    title: 'Vigília de Oração e Intercessão',
-    dateStr: 'Sex, 19 de Junho',
-    day: 19,
-    month: 'Jun',
-    timeStr: '22:00',
-    location: 'Templo Principal',
-    description: 'Uma noite dedicada unicamente a clamar pela nação, pelas famílias, pelos enfermos e pela expansão da obra de Deus.',
-    going: false,
-  }
-];
+export const INITIAL_EVENTS: ChurchEvent[] = [];
 
 export const BIBLE_BOOKS: BibleBook[] = [
   { name: 'Gênesis', abbrev: 'Gn', chapters: 50 },

@@ -835,26 +835,32 @@ export default function AdminSection({
   };
 
   const handleDeleteTransmissionClick = async (id: string, title: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a transmissão "${title}"?`)) {
-      return;
-    }
-    const updated = transmissions.filter(t => t.id !== id);
-    setTransmissions(updated);
-    
-    try {
-      await deleteDoc(doc(db, 'transmissions', id));
-      localStorage.setItem('church_transmissions_list', JSON.stringify(updated));
-      onShowAlert(`Transmissão "${title}" excluída com sucesso!`);
-    } catch (err) {
-      onShowAlert("Erro ao excluir transmissão no Firebase.");
-    }
-    
-    // Choose active transmission
-    if (updated.length > 0) {
-      localStorage.setItem('church_youtube_live', JSON.stringify(updated[0]));
-    } else {
-      localStorage.removeItem('church_youtube_live');
-    }
+    const action = async () => {
+      const updated = transmissions.filter(t => t.id !== id);
+      setTransmissions(updated);
+      
+      try {
+        await deleteDoc(doc(db, 'transmissions', id));
+        localStorage.setItem('church_transmissions_list', JSON.stringify(updated));
+        onShowAlert(`Transmissão "${title}" excluída com sucesso!`);
+      } catch (err) {
+        onShowAlert("Erro ao excluir transmissão no Firebase.");
+      }
+      
+      // Escolher transmissão ativa
+      if (updated.length > 0) {
+        localStorage.setItem('church_youtube_live', JSON.stringify(updated[0]));
+      } else {
+        localStorage.removeItem('church_youtube_live');
+      }
+    };
+
+    setConfirmDelete({
+      id,
+      type: 'Transmissão',
+      action,
+      name: title
+    });
   };
 
   const handleNewTransmissionClick = () => {
@@ -2279,10 +2285,15 @@ export default function AdminSection({
                           </button>
 
                           <button
-                            onClick={() => {
-                              setLocalPrayers(prev => prev.filter(p => p.id !== prayer.id));
-                              onShowAlert(`Pedido "${prayer.title}" removido com sucesso.`);
-                            }}
+                            onClick={() => setConfirmDelete({ 
+                              id: prayer.id, 
+                              type: 'Pedido de Oração', 
+                              action: () => {
+                                onDeletePrayer(prayer.id);
+                                onShowAlert(`Pedido de Oração removido.`);
+                              }, 
+                              name: prayer.title 
+                            })}
                             className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg cursor-pointer"
                             title="Remover pedido permanentemente"
                           >
@@ -3955,12 +3966,15 @@ export default function AdminSection({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm(`Tem certeza que deseja excluir o estudo "${study.title}"?`)) {
+                          onClick={() => setConfirmDelete({
+                            id: study.id,
+                            type: 'Estudo Bíblico',
+                            action: () => {
                               onDeleteStudy(study.id);
                               onShowAlert(`Estudo Bíblico "${study.title}" removido com sucesso.`);
-                            }
-                          }}
+                            },
+                            name: study.title
+                          })}
                           className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
                           title="Excluir estudo"
                         >
@@ -4180,12 +4194,15 @@ export default function AdminSection({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`Excluir programa "${prog.title}" da rádio?`)) {
+                        onClick={() => setConfirmDelete({
+                          id: prog.id,
+                          type: 'Programa de Rádio',
+                          action: () => {
                             onDeleteRadioProgram(prog.id);
                             onShowAlert(`Programa "${prog.title}" foi removido da Rádio.`);
-                          }
-                        }}
+                          },
+                          name: prog.title
+                        })}
                         className="p-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-xl cursor-pointer"
                         title="Excluir do ar"
                       >
@@ -4267,9 +4284,11 @@ export default function AdminSection({
                       <span className="text-xs font-bold text-slate-800 truncate">{opt.name}</span>
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (!opt.id) return;
-                          if (confirm(`Excluir a opção "${opt.name}" do seletor?`)) {
+                        onClick={() => setConfirmDelete({
+                          id: opt.id || '',
+                          type: 'Opção de Suporte',
+                          action: async () => {
+                            if (!opt.id) return;
                             try {
                               await deleteDoc(doc(db, 'supportOptions', opt.id));
                               onShowAlert(`Opção "${opt.name}" removida.`);
@@ -4277,8 +4296,9 @@ export default function AdminSection({
                               console.error(err);
                               onShowAlert("Erro ao remover opção.");
                             }
-                          }
-                        }}
+                          },
+                          name: opt.name
+                        })}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                         title="Remover opção"
                       >
@@ -4368,9 +4388,11 @@ export default function AdminSection({
                         </button>
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (!ticket.id) return;
-                            if (confirm("Gostaria de apagar este chamado de suporte permanentemente?")) {
+                          onClick={() => setConfirmDelete({
+                            id: ticket.id || '',
+                            type: 'Chamado de Suporte',
+                            action: async () => {
+                              if (!ticket.id) return;
                               try {
                                 await deleteDoc(doc(db, 'supportTickets', ticket.id));
                                 onShowAlert("Chamado excluído.");
@@ -4378,8 +4400,9 @@ export default function AdminSection({
                                 console.error(err);
                                 onShowAlert("Erro ao excluir chamado.");
                               }
-                            }
-                          }}
+                            },
+                            name: ticket.name
+                          })}
                           className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors border border-rose-100"
                           title="Excluir Chamado"
                         >

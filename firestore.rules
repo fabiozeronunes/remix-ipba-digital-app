@@ -37,7 +37,7 @@ service cloud.firestore {
 
     // USERS
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn(); 
       allow update: if isSignedIn() && (('email' in request.auth.token && request.auth.token.email.lower() == resource.data.email.lower()) || isAdmin());
       allow delete: if isAdmin();
@@ -45,7 +45,7 @@ service cloud.firestore {
 
     // PRAYERS
     match /prayers/{prayerId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isAdmin() || (isSignedIn() && isOwner(resource.data.authorEmail));
@@ -53,7 +53,7 @@ service cloud.firestore {
 
     // CELLS
     match /cells/{cellId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -66,7 +66,7 @@ service cloud.firestore {
 
     // EVENTS
     match /events/{eventId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create, update, delete: if isAdmin();
       // Allow users to confirm participation
       allow update: if isSignedIn();
@@ -74,21 +74,21 @@ service cloud.firestore {
 
     // STUDIES & RADIO
     match /studies/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
     match /radioPrograms/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     // TRANSMISSIONS
     match /transmissions/{id} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow write: if isAdmin();
     }
     match /transmissionChats/{id} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow create: if isSignedIn();
         allow update, delete: if isAdmin();
     }
@@ -99,21 +99,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /supportTickets/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
     // NOTIFICATIONS
     match /notifications/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     
     // CUSTOM ROLES
     match /customRoles/{id} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

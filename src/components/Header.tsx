@@ -4,13 +4,11 @@ import { User as UserType } from '../types';
 interface HeaderProps {
   user: UserType | null;
   onNavigate: (tab: string) => void;
-  onToggleNotifications: () => void;
-  unreadCount: number;
   deferredPrompt: any;
   onInstall: () => void;
 }
 
-export default function Header({ user, onNavigate, onToggleNotifications, unreadCount, deferredPrompt, onInstall }: HeaderProps) {
+export default function Header({ user, onNavigate, deferredPrompt, onInstall }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 w-full z-50 backdrop-blur-lg flex justify-between items-center px-6 py-4 shadow-md bg-[#002D5E] text-white">
       {/* IPB Digital Logo and Wordmark */}
@@ -26,18 +24,6 @@ export default function Header({ user, onNavigate, onToggleNotifications, unread
       </div>
 
        <div className="flex items-center gap-2 md:gap-4">
-        {/* Notification Bell */}
-        <button 
-          onClick={onToggleNotifications}
-          className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/90 active:scale-95 duration-100 cursor-pointer flex items-center justify-center"
-          title="Notificações"
-        >
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-600 rounded-full ring-2 ring-[#002D5E]" />
-          )}
-        </button>
-
         {/* User Session Portal */}
         {user ? (
           <button 
