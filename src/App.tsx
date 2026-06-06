@@ -139,22 +139,21 @@ export default function App() {
   const [showSoftNotifPrompt, setShowSoftNotifPrompt] = useState(false);
 
   useEffect(() => {
-    // Detecção robusta de PWA / Modo Standalone
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone || document.referrer.includes('android-app://');
-    
-    // Debug logs para o console
-    console.log("[Notificações] Modo Standalone detectado:", isStandalone);
-    
-    const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
-    
-    // Se estiver na HOME e a permissão for default, mostramos o banner estrategicamente
-    if ('Notification' in window && Notification.permission === 'default') {
-      if (currentTab === 'home' && (!hasDismissed || isStandalone)) {
-        console.log("[Notificações] Preparando para mostrar banner na Home...");
-        const timer = setTimeout(() => {
-          setShowSoftNotifPrompt(true);
-        }, 2000); // Reduzi para 2 segundos para ser mais ágil
-        return () => clearTimeout(timer);
+    // Log para depuração direta
+    if (currentTab === 'home' && 'Notification' in window) {
+      console.log("[Push] Verificando permissão na Home:", Notification.permission);
+      
+      if (Notification.permission === 'default') {
+        const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+        
+        if (!hasDismissed || isStandalone) {
+          const timer = setTimeout(() => {
+            console.log("[Push] Disparando banner de notificação.");
+            setShowSoftNotifPrompt(true);
+          }, 1500);
+          return () => clearTimeout(timer);
+        }
       }
     }
   }, [currentTab]);
