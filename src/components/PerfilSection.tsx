@@ -132,6 +132,29 @@ export default function PerfilSection({
   const [showPasswords, setShowPasswords] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showNotificationsControl, setShowNotificationsControl] = useState(false);
+  const [systemNotifPermission, setSystemNotifPermission] = useState<string>(() => {
+    return 'Notification' in window ? Notification.permission : 'unsupported';
+  });
+
+  const handleRequestSystemPermission = async () => {
+    if (!('Notification' in window)) {
+      onShowAlert("Seu navegador não suporta notificações nativas.");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setSystemNotifPermission(permission);
+      if (permission === 'granted') {
+        onShowAlert("Excelente! As notificações do sistema foram ativadas com sucesso.");
+      } else if (permission === 'denied') {
+        onShowAlert("As notificações foram bloqueadas. Para receber alertas, você precisa liberar nas configurações do seu navegador.");
+      }
+    } catch (err) {
+      console.warn("Erro ao solicitar permissão:", err);
+    }
+  };
+
   const [notifPreferences, setNotifPreferences] = useState(() => {
     const saved = localStorage.getItem('church_notif_preferences');
     if (saved) {
@@ -967,6 +990,42 @@ export default function PerfilSection({
 
             {showNotificationsControl && (
               <div className="bg-[#f0f2f5] p-5 border-t border-slate-200/60 space-y-4 animate-fade-in text-[#2c323f]">
+                {/* System Level Permission Control */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 mb-2">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2.5">
+                       <ShieldAlert className={`w-5 h-5 shrink-0 ${
+                         systemNotifPermission === 'granted' ? 'text-emerald-500' :
+                         systemNotifPermission === 'denied' ? 'text-rose-500' : 'text-amber-500'
+                       }`} />
+                       <div>
+                         <h4 className="text-xs font-extrabold text-[#191c1d] leading-tight">Notificações do Sistema</h4>
+                         <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                           {systemNotifPermission === 'granted' ? 'Ativadas no seu dispositivo' : 
+                            systemNotifPermission === 'denied' ? 'Bloqueadas pelo navegador' : 
+                            'Ainda não configuradas'}
+                         </p>
+                       </div>
+                     </div>
+                     
+                     {systemNotifPermission !== 'granted' && (
+                       <button 
+                         onClick={handleRequestSystemPermission}
+                         className="px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-700 transition-all cursor-pointer shadow-sm active:scale-95"
+                       >
+                         {systemNotifPermission === 'denied' ? 'Como Resolver?' : 'Ativar Agora'}
+                       </button>
+                     )}
+                   </div>
+                   
+                   {systemNotifPermission === 'granted' && (
+                     <div className="flex items-center gap-2 pt-1">
+                        <Check className="w-3 h-3 text-emerald-500 stroke-[3px]" />
+                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Pronto para receber alertas push</span>
+                     </div>
+                   )}
+                </div>
+
                 <p className="text-[10px] font-black text-indigo-950 uppercase tracking-widest block pb-1 border-b border-slate-300">
                   Canais de Notificação Ativos
                 </p>

@@ -124,15 +124,22 @@ export default function App() {
 
   useEffect(() => {
     // Solicitar permissão para notificações nativas e verificar suporte PUSH
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      if (Notification.permission !== 'granted') {
-        Notification.requestPermission().then(permission => {
-          console.log('Push notification permission:', permission);
-        });
+    const requestNotifPermission = async () => {
+      if ('serviceWorker' in navigator && 'Notification' in window) {
+        try {
+          if (Notification.permission === 'default') {
+            const permission = await Notification.requestPermission();
+            console.log('Resultado da permissão de notificação:', permission);
+          }
+        } catch (err) {
+          console.warn('Erro ao solicitar permissão de notificação:', err);
+        }
       }
-    } else {
-      console.warn('Navegador não suporta Push API');
-    }
+    };
+
+    // Pequeno delay para evitar bloqueios de carregamento agressivo de alguns navegadores
+    const timer = setTimeout(requestNotifPermission, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   const [isAuthReady, setIsAuthReady] = useState(false);
