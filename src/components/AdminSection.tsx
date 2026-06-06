@@ -1522,23 +1522,41 @@ export default function AdminSection({
                   </div>
                   
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs font-bold text-[#001939]">Confirmados ({ev.confirmedUsers?.length || 0}):</p>
-                    {ev.confirmedUsers?.map(email => {
-                      const member = dbUsers.find(u => u.email?.toLowerCase() === email.toLowerCase());
-                      if (!member) return null;
-                      const phone = member.phone || '';
-                      const whatsappLink = `https://wa.me/55${phone.replace(/\D/g, '')}`;
-                      return (
-                        <div key={email} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 text-[10px]">
-                          <span className="font-bold">{member.name}</span>
-                          {phone && (
-                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold hover:underline">
-                              WhatsApp
-                            </a>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <p className="text-[10px] font-black text-[#001939] uppercase tracking-widest border-b border-slate-200 pb-1 flex items-center justify-between">
+                      <span>Lista de Confirmados</span>
+                      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[9px]">{ev.confirmedUsers?.length || 0}</span>
+                    </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {ev.confirmedUsers && ev.confirmedUsers.length > 0 ? (
+                        ev.confirmedUsers.map(email => {
+                          const member = (dbUsers || []).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+                          const displayName = member ? member.name : email;
+                          const phone = member?.phone || '';
+                          const whatsappLink = phone ? `https://wa.me/55${phone.replace(/\D/g, '')}` : null;
+                          
+                          return (
+                            <div key={email} className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in slide-in-from-left-2 duration-300">
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-slate-800 leading-tight">{displayName}</span>
+                                {member && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">{member.category?.split(',')[0]}</span>}
+                              </div>
+                              {phone && whatsappLink && (
+                                <a 
+                                  href={whatsappLink} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="flex items-center gap-1.5 bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-emerald-600 transition-all shadow-md active:scale-95"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5"/> {phone}
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic py-2 text-center">Ainda não há participações confirmadas.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2108,24 +2126,40 @@ export default function AdminSection({
 
                       {/* Integrated Confirmation section */}
                       <div className="pt-3 border-t border-slate-100">
-                           <p className="text-[10px] text-slate-500 font-bold mb-2">Confirmados ({ev.confirmedUsers?.length || 0}):</p>
-                           <div className="space-y-2">
-                             {ev.confirmedUsers?.map(email => {
-                               const member = dbUsers.find(u => u.email?.toLowerCase() === email.toLowerCase());
-                               if (!member) return null;
-                               const phone = member.phone || '';
-                               const whatsappLink = `https://wa.me/55${phone.replace(/\D/g, '')}`;
-                               return (
-                                 <div key={email} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 text-[10px]">
-                                   <span className="font-bold">{member.name}</span>
-                                   {phone && (
-                                     <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-emerald-600 font-bold hover:underline">
-                                       <MessageCircle className="w-3 h-3"/> {phone}
-                                     </a>
-                                   )}
-                                 </div>
-                               );
-                             })}
+                           <div className="flex items-center justify-between mb-2">
+                             <p className="text-[10px] text-indigo-900 font-black uppercase tracking-wider">Confirmados ({ev.confirmedUsers?.length || 0})</p>
+                             <Users className="w-3.5 h-3.5 text-indigo-400" />
+                           </div>
+                           <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto no-scrollbar">
+                             {ev.confirmedUsers && ev.confirmedUsers.length > 0 ? (
+                               ev.confirmedUsers.map(email => {
+                                 const member = (dbUsers || []).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+                                 const displayName = member ? member.name : email;
+                                 const phone = member?.phone || '';
+                                 const whatsappLink = phone ? `https://wa.me/55${phone.replace(/\D/g, '')}` : null;
+                                 
+                                 return (
+                                   <div key={email} className="flex items-center justify-between bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100/50 group transition-all hover:bg-white hover:shadow-sm">
+                                     <div className="flex flex-col">
+                                       <span className="text-[10px] font-extrabold text-slate-800 leading-tight">{displayName}</span>
+                                       {member && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">{member.category?.split(',')[0]}</span>}
+                                     </div>
+                                     {phone && whatsappLink && (
+                                       <a 
+                                         href={whatsappLink} 
+                                         target="_blank" 
+                                         rel="noopener noreferrer" 
+                                         className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-[9px] font-black hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                       >
+                                         <MessageCircle className="w-3 h-3"/> {phone}
+                                       </a>
+                                     )}
+                                   </div>
+                                 );
+                               })
+                             ) : (
+                               <p className="text-[10px] text-slate-400 italic font-semibold py-1">Nenhuma confirmação ainda.</p>
+                             )}
                            </div>
                       </div>
                     </div>

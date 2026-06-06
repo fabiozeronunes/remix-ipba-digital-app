@@ -1472,6 +1472,19 @@ export default function App() {
     showAlert("Todas lidas!");
   };
 
+  const tabNotifications: Record<string, number> = {};
+  notifications.forEach(n => {
+    if (n.unread && n.type) {
+      tabNotifications[n.type] = (tabNotifications[n.type] || 0) + 1;
+    }
+  });
+
+  // Somar pendências de usuários no badge do admin
+  const pendingUsersCount = dbUsers.filter(u => u.status === 'Pendente').length;
+  if (pendingUsersCount > 0) {
+    tabNotifications['admin'] = (tabNotifications['admin'] || 0) + pendingUsersCount;
+  }
+
   return (
     <>
       <div className="min-h-screen bg-surface font-sans text-on-surface flex flex-col relative pb-24">
@@ -1907,8 +1920,10 @@ export default function App() {
           >
             <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 border border-white/20 relative">
               <Bell className="w-6 h-6 text-[#002d5e] animate-bounce-slow" />
-              {/* Badge visual para consistencia com o sino do topo */}
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full shadow-sm animate-pulse" />
+              {/* Badge visual consistente com o sino do topo e com o número total de não lidas */}
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 bg-red-500 border-2 border-white rounded-full shadow-sm animate-pulse flex items-center justify-center text-[8px] font-black text-white px-0.5">
+                {notifications.filter(n => n.unread).length}
+              </span>
             </div>
             <div className="flex-1 space-y-0.5 overflow-hidden text-left">
               <div className="flex justify-between items-center text-[10px] text-white/70 font-extrabold uppercase tracking-widest">
@@ -2115,7 +2130,7 @@ export default function App() {
         userLogged={!!user}
         isAdmin={!!(user && (user.category?.includes('Pastor / Presbítero') || user.category?.includes('Coordenador / Admin')))}
         isVisitor={user?.category === 'Visitante'}
-        pendingCount={dbUsers.filter(u => u.status === 'Pendente').length}
+        tabNotifications={tabNotifications}
       />
     </>
   );

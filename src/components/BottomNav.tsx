@@ -18,10 +18,17 @@ interface BottomNavProps {
   userLogged: boolean;
   isAdmin?: boolean;
   isVisitor?: boolean;
-  pendingCount?: number;
+  tabNotifications?: Record<string, number>;
 }
 
-export default function BottomNav({ currentTab, onNavigate, userLogged, isAdmin, isVisitor, pendingCount = 0 }: BottomNavProps) {
+export default function BottomNav({ 
+  currentTab, 
+  onNavigate, 
+  userLogged, 
+  isAdmin, 
+  isVisitor, 
+  tabNotifications = {} 
+}: BottomNavProps) {
   const tabs = [
     { id: 'login', label: 'Login', icon: LogIn },
     ...(isAdmin ? [{ id: 'admin', label: 'Painel Admin', icon: ShieldAlert }] : []),
@@ -45,6 +52,7 @@ export default function BottomNav({ currentTab, onNavigate, userLogged, isAdmin,
         {tabs.map((tab) => {
           const isActive = currentTab === tab.id;
           const IconComponent = tab.icon;
+          const notificationCount = tabNotifications[tab.id] || 0;
 
           return (
             <button
@@ -56,11 +64,11 @@ export default function BottomNav({ currentTab, onNavigate, userLogged, isAdmin,
                   : 'text-slate-400 hover:text-[#002D5E] hover:bg-slate-100/50'
               }`}
             >
-              {tab.id === 'admin' && pendingCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center z-10">
+              {notificationCount > 0 && (
+                <span className="absolute top-1.5 right-2 flex h-4 w-4 items-center justify-center z-10">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-[#ff3b30] text-[8px] font-black text-white ring-1 ring-white items-center justify-center shadow-xs">
-                    {pendingCount}
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-[#ff3b30] text-[9px] font-black text-white ring-2 ring-white items-center justify-center shadow-sm">
+                    {notificationCount}
                   </span>
                 </span>
               )}
