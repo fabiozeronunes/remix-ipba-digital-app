@@ -137,6 +137,12 @@ export default function App() {
   }, []);
 
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const userRef = useRef<User | null>(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const lastProcessedEventsRef = useRef(new Date().toISOString());
   const lastProcessedCellsRef = useRef(new Date().toISOString());
   const lastProcessedPrayersRef = useRef(new Date().toISOString());
@@ -178,7 +184,8 @@ export default function App() {
         if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
           const data = change.doc.data() as PrayerRequest;
           if (data.aprovado && data.updatedAt && data.updatedAt > lastProcessedPrayersRef.current) {
-            if (user && data.authorEmail?.toLowerCase() === user.email?.toLowerCase()) return;
+            const currentUser = userRef.current;
+            if (currentUser && data.authorEmail?.toLowerCase() === currentUser.email?.toLowerCase()) return;
             
             triggerPhoneNotification('prayer', '🙏 Novo Pedido de Oração!', `Interceda pelo pedido: "${data.title}".`);
             setNotifications(prev => [
@@ -202,7 +209,7 @@ export default function App() {
       console.warn("Firestore Prayers fetch failed:", error);
     });
     return () => unsubscribe();
-  }, [isAuthReady, user]);
+  }, [isAuthReady]);
 
   // Sync Cells
   useEffect(() => {
@@ -246,9 +253,6 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
-  // Sync Contributions
-  useEffect(() => {
-    if (!isAuthReady) return;
     const userEmail = user?.email || '';
     const isLeader = !!(user && (
       user.category?.includes('Pastor') || 
@@ -257,10 +261,13 @@ export default function App() {
       user.category?.includes('Coordenador')
     ));
 
-    let q = query(collection(db, 'contributions'));
-    if (!isLeader && userEmail) {
-      q = query(collection(db, 'contributions'), where('userEmail', '==', userEmail));
-    }
+    useEffect(() => {
+      if (!isAuthReady) return;
+      
+      let q = query(collection(db, 'contributions'));
+      if (!isLeader && userEmail) {
+        q = query(collection(db, 'contributions'), where('userEmail', '==', userEmail));
+      }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (snapshot.empty && userEmail) {
@@ -295,11 +302,11 @@ export default function App() {
         });
         setContributions(list);
       }
-    }, (error) => {
-      console.warn("Firestore Contributions query failed:", error);
-    });
-    return () => unsubscribe();
-  }, [user, isAuthReady]);
+      }, (error) => {
+        console.warn("Firestore Contributions query failed:", error);
+      });
+      return () => unsubscribe();
+    }, [userEmail, isLeader, isAuthReady]);
 
   // Sync Events
   useEffect(() => {

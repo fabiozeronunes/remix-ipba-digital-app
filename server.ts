@@ -32,7 +32,14 @@ async function startServer() {
   // API routes go here
   app.use(express.json());
 
-  // Download automatico do logo oficial para a pasta public (garante existencia do icone no PWA)
+  // Health check for platform stability
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", uptime: process.uptime() });
+  });
+
+  app.get("/api/ping", (req, res) => {
+    res.send("pong");
+  });
   const logoUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuADYMPvZcaOSpHUoz7xjXH4_NJcY25qztiFideOgHchUZKhDCIoAyq_MGHgParQMmKcwudjYsYMEG0TCr3XaZvoDPdwhgOP69aaiYWcXIUEoQX0Ra1DCbFOr3bTIMz7JLCMI4XJDTJ0bjECIZfhV06N7LfW5TN63vQqhOogP521OSWtqiXBFJbV9vtNdePlGu6ecRVcuNbWfGIZugLjKYMuloDE98xQMY7_Vw6y7T4gzlmYr-7m3DQqOwEyMuaNC6tgBxOSbbR0jgY";
   const publicLogoPath = path.join(process.cwd(), "public", "icon-512.png");
   if (!fs.existsSync(publicLogoPath) || (fs.existsSync(publicLogoPath) && fs.statSync(publicLogoPath).size === 0)) {
@@ -59,20 +66,48 @@ async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        watch: {
+          usePolling: true,
+          interval: 1000
+        }
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = resolvedDirname;
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    // Determine the absolute path to the dist folder
+    // When bundled as dist/server.cjs, __dirname is dist.
+    const distPath = resolvedDirname.endsWith('dist') ? resolvedDirname : path.join(process.cwd(), 'dist');
+    
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    } else {
+      app.get('*', (req, res) => {
+        res.status(404).send('Build not found. Please run npm run build.');
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  // Graceful shutdown and error prevention
+  process.on('uncaughtException', (err) => {
+    console.error('CRITICAL: Uncaught Exception:', err);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    console.error('Server error:', err);
   });
 }
 
