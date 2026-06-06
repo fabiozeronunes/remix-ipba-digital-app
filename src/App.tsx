@@ -127,11 +127,12 @@ export default function App() {
   useEffect(() => {
     // Verificar se já temos permissão ou se negamos. Se default, mostramos o prompt suave.
     if ('Notification' in window) {
-      if (Notification.permission === 'default') {
-        // Delay de 3 segundos para não assustar o usuário e garantir que o app carregou
+      const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
+      if (Notification.permission === 'default' && !hasDismissed) {
+        // Delay de 3.5 segundos para garantir carregamento completo
         const timer = setTimeout(() => {
           setShowSoftNotifPrompt(true);
-        }, 3000);
+        }, 3500);
         return () => clearTimeout(timer);
       }
     }
@@ -144,14 +145,22 @@ export default function App() {
       const permission = await Notification.requestPermission();
       console.log('Permission result:', permission);
       setShowSoftNotifPrompt(false);
+      localStorage.setItem('church_soft_prompt_dismissed', 'true');
       
       if (permission === 'granted') {
         setToast("✅ Notificações ativadas com sucesso!");
+      } else {
+        setToast("⚠️ Notificações não ativadas.");
       }
     } catch (err) {
       console.error('Erro ao pedir permissão:', err);
       setShowSoftNotifPrompt(false);
     }
+  };
+
+  const handleDismissSoftPrompt = () => {
+    setShowSoftNotifPrompt(false);
+    localStorage.setItem('church_soft_prompt_dismissed', 'true');
   };
 
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -1459,45 +1468,45 @@ export default function App() {
         unreadCount={notifications.filter(n => n.unread).length}
       />
 
+      {/* Soft Notification Prompt Banner */}
+      {showSoftNotifPrompt && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 p-5 z-[100] animate-banner-slide-in ring-4 ring-indigo-500/10">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+              <Bell className="w-6 h-6 text-indigo-600 animate-bounce-slow" />
+            </div>
+            <div className="flex-grow space-y-1">
+              <h3 className="text-sm font-extrabold text-[#191c1d]">Ativar Notificações?</h3>
+              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                Acompanhe cultos ao vivo, novos pedidos de oração e eventos importantes em tempo real no seu celular.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={handleNativePermissionRequest}
+                  className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer active:scale-95"
+                >
+                  Sim, Ativar
+                </button>
+                <button 
+                  onClick={handleDismissSoftPrompt}
+                  className="text-slate-400 px-2 py-2.5 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
+                >
+                  Agora não
+                </button>
+              </div>
+            </div>
+            <button 
+              onClick={handleDismissSoftPrompt}
+              className="text-slate-300 hover:text-slate-500 transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Single-Screen Render Router Canvas */}
       <main className="pt-24 px-6 max-w-lg mx-auto w-full flex-grow relative">
-        
-        {/* Soft Notification Prompt Banner */}
-        {showSoftNotifPrompt && (
-          <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 p-4 z-[55] animate-in fade-in slide-in-from-top-8 duration-500 ring-4 ring-indigo-500/10">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0">
-                <Bell className="w-6 h-6 text-indigo-600 animate-pulse" />
-              </div>
-              <div className="flex-grow space-y-1">
-                <h3 className="text-sm font-extrabold text-[#191c1d]">Ativar Notificações?</h3>
-                <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                  Receba avisos de cultos ao vivo, novos pedidos de oração e eventos da IPB Digital diretamente no seu celular.
-                </p>
-                <div className="flex gap-3 pt-2">
-                  <button 
-                    onClick={handleNativePermissionRequest}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 cursor-pointer"
-                  >
-                    Sim, Ativar
-                  </button>
-                  <button 
-                    onClick={() => setShowSoftNotifPrompt(false)}
-                    className="text-slate-400 px-2 py-2 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
-                  >
-                    Agora não
-                  </button>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowSoftNotifPrompt(false)}
-                className="text-slate-300 hover:text-slate-500 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
         
         {/* Render active section tab component */}
         {currentTab === 'home' && (
@@ -1769,6 +1778,26 @@ export default function App() {
 
       {/* Styled smartphone push notifications keyframes */}
       <style>{`
+        @keyframes bannerSlideIn {
+          from {
+            transform: translate(-50%, -100%) scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0) scale(1);
+            opacity: 1;
+          }
+        }
+        .animate-banner-slide-in {
+          animation: bannerSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes bounceSlow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-slow {
+          animation: bounceSlow 2s ease-in-out infinite;
+        }
         @keyframes slideInTopPush {
           0% { transform: translateY(-120px); opacity: 0; }
           60% { transform: translateY(12px); opacity: 1; }
