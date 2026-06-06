@@ -520,21 +520,6 @@ export default function App() {
         
         const defaultUsers: User[] = [
           {
-            name: 'Ricardo Lima',
-            category: 'Membro Comungante',
-            avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCAw9f0m9zhnseECjh851sbC_y6zLT72KxZLFVCXdRwDIWH1CC-47FIiUxUXqTuB95Spni3XDvS7u1c-glbKjtQ2aiQke9uLjXjx-PV80NSNENNsu_daFFwxaV4mbyOOaA9-ScMxItwTnqLmvpGA-Dd2xJWBIz5zJZspCQG6fQDPZ6kwo3E_MeyjhrwVP4B2tYvr6V3HBeiGN899eENqjHE6bBz6N_K14zK1XoogBk6NAT1WsQyx2fJXpIuYiRJK92dLfb6Zkrbf9c',
-            planCount: 12,
-            prayerCount: 5,
-            eventCount: 3,
-            email: 'ricardo.lima@email.com',
-            phone: '(11) 98765-4321',
-            birthDate: '1990-04-15',
-            address: 'Alameda Lorena, 880 - Jardins, São Paulo',
-            ministry: 'Som & Mídia',
-            password: '123',
-            status: 'Ativo'
-          },
-          {
             name: 'Fabio Nunes',
             email: 'fabiozeronunes@gmail.com',
             phone: '(11) 99999-7777',
@@ -574,6 +559,15 @@ export default function App() {
           if (u && u.email) {
             const normalizedEmail = u.email.trim().toLowerCase();
             
+            // Ativamente excluir Ricardo Lima se ele ainda existir nas snapshots para resolver de vez a persistência antiga
+            if (normalizedEmail === 'ricardo.lima@email.com') {
+              const docId = snapDoc.id;
+              deleteDoc(doc(db, 'users', docId))
+                .then(() => console.log('Excluído Ricardo Lima de forma definitiva do banco.'))
+                .catch(err => console.warn('Erro ao limpar Ricardo Lima:', err));
+              return; // Ignora e não adiciona à lista
+            }
+
             // Ativamente excluir o pastor administrador de forma proativa do painel / banco
             if (normalizedEmail === 'admin@igreja.com') {
               const docId = snapDoc.id;
@@ -606,7 +600,7 @@ export default function App() {
 
             if (!seenEmailsInSnapshot.has(normalizedEmail)) {
               seenEmailsInSnapshot.add(normalizedEmail);
-              fbList.push(u);
+              fbList.push({ ...u, id: snapDoc.id });
             } else {
               // Self-healing: delete duplicate user document to permanently clean Firestore
               const docId = snapDoc.id;

@@ -543,7 +543,8 @@ export default function AdminSection({
       return;
     }
     try {
-      const docId = getUserDocId(email);
+      const matched = dbUsers.find(u => (u.email || '').trim().toLowerCase() === email.trim().toLowerCase());
+      const docId = (matched && matched.id) ? matched.id : getUserDocId(email);
       await deleteDoc(doc(db, 'users', docId));
 
       if (onDeleteUser) {
