@@ -1151,6 +1151,9 @@ export default function App() {
 
   // Handle deleting a prayer request
   const handleDeletePrayer = async (prId: string) => {
+    // Atualização otimista local
+    setPrayers(prev => prev.filter(p => p.id !== prId));
+    
     try {
       await deleteDoc(doc(db, 'prayers', prId));
       showAlert("Seu pedido de oração e intercessão foi removido com sucesso.");
@@ -1490,7 +1493,7 @@ export default function App() {
 
       {/* Soft PWA Installation Prompt Banner */}
       {showSoftInstallPrompt && !showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
+        <div className="fixed bottom-24 md:top-28 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-emerald-100">
               <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
@@ -1536,7 +1539,7 @@ export default function App() {
 
       {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
       {showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
+        <div className="fixed bottom-24 md:top-28 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
               <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
@@ -1847,22 +1850,22 @@ export default function App() {
         @keyframes bannerSlideIn {
           from {
             opacity: 0;
-            transform: translate(-50%, 40px);
+            transform: translateY(40px);
           }
           to {
             opacity: 1;
-            transform: translate(-50%, 0);
+            transform: translateY(0);
           }
         }
         @media (min-width: 768px) {
           @keyframes bannerSlideIn {
             from {
               opacity: 0;
-              transform: translate(-50%, -40px);
+              transform: translateY(-40px);
             }
             to {
               opacity: 1;
-              transform: translate(-50%, 0);
+              transform: translateY(0);
             }
           }
         }

@@ -2289,6 +2289,7 @@ export default function AdminSection({
                               id: prayer.id, 
                               type: 'Pedido de Oração', 
                               action: () => {
+                                setLocalPrayers(prev => prev.filter(p => p.id !== prayer.id));
                                 onDeletePrayer(prayer.id);
                                 onShowAlert(`Pedido de Oração removido.`);
                               }, 
