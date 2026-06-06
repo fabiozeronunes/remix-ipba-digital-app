@@ -802,11 +802,6 @@ export default function App() {
         });
       }, 100);
 
-      // Auto-dismiss notification after 8 seconds
-      setTimeout(() => {
-        setPhoneNotification(prev => prev && prev.title === title ? null : prev);
-      }, 8000);
-
       // System Native Notification via Service Worker
       if ('serviceWorker' in navigator && Notification.permission === 'granted') {
         navigator.serviceWorker.ready.then(registration => {
@@ -1493,7 +1488,7 @@ export default function App() {
 
       {/* Soft PWA Installation Prompt Banner */}
       {showSoftInstallPrompt && !showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
+        <div className="fixed top-24 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-emerald-100">
               <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
@@ -1539,7 +1534,7 @@ export default function App() {
 
       {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
       {showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
+        <div className="fixed top-24 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
               <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
@@ -1910,12 +1905,10 @@ export default function App() {
             }}
             className="pointer-events-auto w-full max-w-[420px] bg-[#002d5e] border border-white/10 p-4 rounded-3xl shadow-2xl flex items-start gap-3.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-98 text-white phone-push-entered"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 border border-white/20">
-              <img 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuADYMPvZcaOSpHUoz7xjXH4_NJcY25qztiFideOgHchUZKhDCIoAyq_MGHgParQMmKcwudjYsYMEG0TCr3XaZvoDPdwhgOP69aaiYWcXIUEoQX0Ra1DCbFOr3bTIMz7JLCMI4XJDTJ0bjECIZfhV06N7LfW5TN63vQqhOogP521OSWtqiXBFJbV9vtNdePlGu6ecRVcuNbWfGIZugLjKYMuloDE98xQMY7_Vw6y7T4gzlmYr-7m3DQqOwEyMuaNC6tgBxOSbbR0jgY"
-                className="w-full h-full object-contain rounded"
-                alt="Logo IPB"
-              />
+            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 border border-white/20 relative">
+              <Bell className="w-6 h-6 text-[#002d5e] animate-bounce-slow" />
+              {/* Badge visual para consistencia com o sino do topo */}
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full shadow-sm animate-pulse" />
             </div>
             <div className="flex-1 space-y-0.5 overflow-hidden text-left">
               <div className="flex justify-between items-center text-[10px] text-white/70 font-extrabold uppercase tracking-widest">
