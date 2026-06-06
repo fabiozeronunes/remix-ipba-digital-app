@@ -91,43 +91,8 @@ export default function App() {
     // Se houver sessão mas nenhuma aba salva (raro), vai para home. Caso contrário, login.
     return currentUserSession ? 'home' : 'login';
   });
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showSoftInstallPrompt, setShowSoftInstallPrompt] = useState(false);
-  const [showInstallGuidance, setShowInstallGuidance] = useState(false);
-  const [installPlatform, setInstallPlatform] = useState<'android' | 'ios'>('android');
+  const [showSoftNotifPrompt, setShowSoftNotifPrompt] = useState(false);
 
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      
-      const hasDismissedInstall = localStorage.getItem('church_install_prompt_dismissed');
-      if (!hasDismissedInstall) {
-        setTimeout(() => setShowSoftInstallPrompt(true), 5000);
-      }
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    if (isIOS) {
-      setInstallPlatform('ios');
-      const hasDismissedInstall = localStorage.getItem('church_install_prompt_dismissed');
-      if (isIOS && !isStandalone && !hasDismissedInstall) {
-        setTimeout(() => setShowSoftInstallPrompt(true), 6000);
-      }
-    }
-  }, []);
-
-  const handleInstallClick = () => {
-    setShowInstallGuidance(true);
-  };
-  
   // Real-time Firestore backed states with default fallback
   const [dbUsers, setDbUsers] = useState<User[]>(() => {
     const rawLocal = localStorage.getItem('church_users');
@@ -148,52 +113,13 @@ export default function App() {
   const [radioPrograms, setRadioPrograms] = useState<RadioProgram[]>([]);
   const [transmissions, setTransmissions] = useState<any[]>([]);
   const [cargos, setCargos] = useState<string[]>([]);
-  const [showSoftNotifPrompt, setShowSoftNotifPrompt] = useState(false);
 
   useEffect(() => {
-    // Log para depuração direta
+    // Mantendo apenas log ou lógica interna, removendo referências a standalone/instalação
     if (currentTab === 'home' && 'Notification' in window) {
-      console.log("[Push] Verificando permissão na Home:", Notification.permission);
-      
-      if (Notification.permission === 'default') {
-        const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-        
-        if (!hasDismissed || isStandalone) {
-          const timer = setTimeout(() => {
-            console.log("[Push] Disparando banner de notificação.");
-            setShowSoftNotifPrompt(true);
-          }, 1500);
-          return () => clearTimeout(timer);
-        }
-      }
+      console.log("[Push] Status de permissão:", Notification.permission);
     }
   }, [currentTab]);
-
-  const handleNativePermissionRequest = async () => {
-    if (!('Notification' in window)) return;
-    
-    try {
-      const permission = await Notification.requestPermission();
-      console.log('Permission result:', permission);
-      setShowSoftNotifPrompt(false);
-      localStorage.setItem('church_soft_prompt_dismissed', 'true');
-      
-      if (permission === 'granted') {
-        setToast("✅ Notificações ativadas com sucesso!");
-      } else {
-        setToast("⚠️ Notificações não ativadas.");
-      }
-    } catch (err) {
-      console.error('Erro ao pedir permissão:', err);
-      setShowSoftNotifPrompt(false);
-    }
-  };
-
-  const handleDismissSoftPrompt = () => {
-    setShowSoftNotifPrompt(false);
-    localStorage.setItem('church_soft_prompt_dismissed', 'true');
-  };
 
   const [isAuthReady, setIsAuthReady] = useState(false);
   const userRef = useRef<User | null>(user);
@@ -201,6 +127,50 @@ export default function App() {
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  // Sincronização em tempo real dedicada para o perfil do usuário logado
+  useEffect(() => {
+    if (!isAuthReady || !user?.email) return;
+    
+    const docId = getUserDocId(user.email);
+    console.log("[Sync] Iniciando ouvinte dedicado para usuário:", user.email);
+    
+    const unsubscribe = onSnapshot(doc(db, 'users', docId), (snap) => {
+      if (snap.exists()) {
+        const updated = snap.data() as User;
+        
+        // Verifica se houve mudança real nos campos principais para evitar loops infinitos
+        // Usamos uma comparação simples de string para detectar mudanças no objeto serializado
+        const currentData = JSON.stringify({
+          name: user.name,
+          category: user.category,
+          status: user.status,
+          ministry: user.ministry,
+          avatarUrl: user.avatarUrl,
+          password: user.password
+        });
+        
+        const newData = JSON.stringify({
+          name: updated.name,
+          category: updated.category,
+          status: updated.status,
+          ministry: updated.ministry,
+          avatarUrl: updated.avatarUrl,
+          password: updated.password
+        });
+
+        if (currentData !== newData) {
+          console.log("[Sync] Perfil do usuário atualizado via Firestore online.");
+          setUser(updated);
+          localStorage.setItem('church_current_user', JSON.stringify(updated));
+        }
+      }
+    }, (error) => {
+      console.warn("[Sync] Falha no ouvinte dedicado do usuário:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, user?.email]);
 
   // Background Firebase anonymous login to ensure all queries succeed if not signed in with Google
   useEffect(() => {
@@ -221,45 +191,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync Global Notifications from Firestore
-  useEffect(() => {
-    if (!isAuthReady) return;
-    let isInitialRun = true;
-    
-    const unsubscribe = onSnapshot(collection(db, 'notifications'), (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const data = change.doc.data();
-          const notifId = change.doc.id;
-          
-          setNotifications(prev => {
-            if (prev.some(n => n.id === notifId)) return prev;
-            
-            const newNotif: AppNotification = {
-              id: notifId,
-              title: data.title || 'Aviso da Igreja',
-              text: data.message || '',
-              time: data.createdAt ? new Date(data.createdAt).toLocaleString('pt-BR') : 'Agora mesmo',
-              unread: true,
-              type: data.targetTab || 'home'
-            };
-
-            // Trigger floating push notification ONLY if not initial run
-            if (!isInitialRun) {
-              triggerPhoneNotification(data.type || 'cell', data.title, data.message);
-            }
-            
-            return [newNotif, ...prev];
-          });
-        }
-      });
-      isInitialRun = false;
-    }, (error) => {
-      console.warn("Firestore Notifications fetch failed:", error);
-    });
-    return () => unsubscribe();
-  }, [isAuthReady]);
-
   const addAppNotification = (type: string, title: string, subtitle: string, targetTab: any) => {
     // 1. Trigger the Top Toast (Phone Push UI)
     triggerPhoneNotification(type as any, title, subtitle);
@@ -277,19 +208,37 @@ export default function App() {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
+  const prayersInitialSync = useRef(true);
+  const eventsInitialSync = useRef(true);
+
   // Sync Prayers
   useEffect(() => {
     if (!isAuthReady) return;
-    let isInitialRun = true;
+    console.log("[Sync] Iniciando ouvinte global: Prayers");
     const unsubscribe = onSnapshot(collection(db, 'prayers'), (snapshot) => {
       const list: PrayerRequest[] = [];
+
+      // Detecção de novos itens para notificações
+      if (!prayersInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as PrayerRequest;
+            // Notifica apenas se for de outro usuário para evitar eco local
+            if (userRef.current && data.authorName?.trim().toLowerCase() !== userRef.current.name?.trim().toLowerCase()) {
+               addAppNotification('prayer', 'Novo Pedido de Oração', `${data.authorName} postou: ${data.title}`, 'oracao');
+            }
+          }
+        });
+      }
+
       snapshot.forEach((snapDoc) => {
         if (snapDoc.id !== 'system_seeded_state') {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as PrayerRequest);
         }
       });
-
+      console.log(`[Sync] Prayers atualizados: ${list.length} registros.`);
       setPrayers(list);
+      prayersInitialSync.current = false;
     }, (error) => {
       console.warn("Firestore Prayers fetch failed:", error);
     });
@@ -299,7 +248,7 @@ export default function App() {
   // Sync Cells
   useEffect(() => {
     if (!isAuthReady) return;
-    let isInitialRun = true;
+    console.log("[Sync] Iniciando ouvinte global: Cells");
     const unsubscribe = onSnapshot(collection(db, 'cells'), (snapshot) => {
       const list: Cell[] = [];
       snapshot.forEach((snapDoc) => {
@@ -307,7 +256,7 @@ export default function App() {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as Cell);
         }
       });
-
+      console.log(`[Sync] Cells atualizadas: ${list.length} registros.`);
       setCells(list);
     }, (error) => {
       console.warn("Firestore Cells fetch failed:", error);
@@ -373,9 +322,20 @@ export default function App() {
   // Sync Events
   useEffect(() => {
     if (!isAuthReady) return;
-    let isInitialRun = true;
+    console.log("[Sync] Iniciando ouvinte global: Events");
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const list: ChurchEvent[] = [];
+
+      // Detecção de novos eventos para notificações
+      if (!eventsInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as ChurchEvent;
+            addAppNotification('event', 'Novo Evento na Igreja', `${data.title} em ${data.date}`, 'eventos');
+          }
+        });
+      }
+
       snapshot.forEach((snapDoc) => {
         if (snapDoc.id !== 'system_seeded_state') {
           const data = snapDoc.data() as ChurchEvent;
@@ -386,8 +346,9 @@ export default function App() {
           } as ChurchEvent);
         }
       });
-
+      console.log(`[Sync] Events atualizados: ${list.length} registros.`);
       setEvents(list);
+      eventsInitialSync.current = false;
     }, (error) => {
       console.warn("Firestore Events fetch failed:", error);
     });
@@ -397,7 +358,7 @@ export default function App() {
   // Sync Studies
   useEffect(() => {
     if (!isAuthReady) return;
-    let isInitialRun = true;
+    console.log("[Sync] Iniciando ouvinte global: Studies");
     const unsubscribe = onSnapshot(collection(db, 'studies'), (snapshot) => {
       const list: ChurchStudy[] = [];
       snapshot.forEach((snapDoc) => {
@@ -405,7 +366,7 @@ export default function App() {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as ChurchStudy);
         }
       });
-
+      console.log(`[Sync] Studies atualizados: ${list.length} registros.`);
       setStudies(list);
     }, (error) => {
       console.warn("Firestore Studies fetch failed:", error);
@@ -416,6 +377,7 @@ export default function App() {
   // Sync Radio Programs
   useEffect(() => {
     if (!isAuthReady) return;
+    console.log("[Sync] Iniciando ouvinte global: Radio");
     const unsubscribe = onSnapshot(collection(db, 'radioPrograms'), (snapshot) => {
       const list: RadioProgram[] = [];
       snapshot.forEach((snapDoc) => {
@@ -423,6 +385,7 @@ export default function App() {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as RadioProgram);
         }
       });
+      console.log(`[Sync] RadioPrograms atualizados: ${list.length} registros.`);
       setRadioPrograms(list);
     }, (error) => {
       console.warn("Firestore Radio Programs fetch failed:", error);
@@ -433,13 +396,13 @@ export default function App() {
   // Sync Transmissions
   useEffect(() => {
     if (!isAuthReady) return;
-    let isInitialRun = true;
+    console.log("[Sync] Iniciando ouvinte global: Transmissions");
     const unsubscribe = onSnapshot(collection(db, 'transmissions'), (snapshot) => {
       const list: any[] = [];
       snapshot.forEach((snapDoc) => {
         list.push({ id: snapDoc.id, ...snapDoc.data() });
       });
-
+      console.log(`[Sync] Transmissions atualizadas: ${list.length} registros.`);
       setTransmissions(list);
     }, (error) => {
       console.warn("Firestore Transmissions fetch failed:", error);
@@ -718,22 +681,6 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
-  // Synchronize current logged-in user real-time state with dbUsers
-  useEffect(() => {
-    if (user && user.email) {
-      const match = dbUsers.find(u => u.email?.trim().toLowerCase() === user.email?.trim().toLowerCase());
-      if (match) {
-        // Safe property-by-property verification (independent of JSON key orders)
-        const keysToCompare: (keyof User)[] = ['name', 'email', 'phone', 'category', 'avatarUrl', 'status', 'ministry', 'address', 'birthDate', 'password'];
-        const hasDifference = keysToCompare.some(k => match[k] !== user[k]);
-        if (hasDifference) {
-          setUser(match);
-          localStorage.setItem('church_current_user', JSON.stringify(match));
-        }
-      }
-    }
-  }, [dbUsers, user]);
-
   const [showNotificationsList, setShowNotificationsList] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('church_app_notifications');
@@ -793,7 +740,8 @@ export default function App() {
         });
       }, 100);
 
-      // System Native Notification via Service Worker
+      // System Native Notification disabled as per request to focus on standard web links
+      /*
       if ('serviceWorker' in navigator && Notification.permission === 'granted') {
         navigator.serviceWorker.ready.then(registration => {
           registration.showNotification(title, {
@@ -805,6 +753,7 @@ export default function App() {
           });
         });
       }
+      */
     }
   };
 
@@ -1272,16 +1221,8 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Novo Evento Cadastrado!', `Não perca: "${newEvent.title}" foi agendado.`);
 
-    // Add system notification for members via Firestore
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        title: 'Nova Atividade Publicada',
-        message: `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`,
-        createdAt: new Date().toISOString(),
-        type: 'event',
-        targetTab: 'eventos'
-      });
-    } catch (err) {}
+    // Add system notification for members
+    addAppNotification('event', 'Nova Atividade Publicada', `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`, 'eventos');
   };
 
   const handleDeleteEventAndPublish = async (id: string) => {
@@ -1310,16 +1251,8 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Evento Atualizado!', `Atenção: o evento "${updatedEvent.title}" foi atualizado.`);
 
-    // Add system notification for members via Firestore
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        title: 'Atividade Atualizada',
-        message: `As informações da atividade "${updatedEvent.title}" foram atualizadas.`,
-        createdAt: new Date().toISOString(),
-        type: 'event',
-        targetTab: 'eventos'
-      });
-    } catch (err) {}
+    // Add system notification for members
+    addAppNotification('event', 'Atividade Atualizada', `As informações da atividade "${updatedEvent.title}" foram atualizadas.`, 'eventos');
   };
 
   // Add Studies state handlers
@@ -1337,16 +1270,8 @@ export default function App() {
       handleFirestoreError(error, OperationType.WRITE, `studies/${id}`);
     }
 
-    // Add system notification for members via Firestore
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        title: '📖 Novo Estudo Publicado!',
-        message: `Confira o novo estudo: "${newStudy.title}"`,
-        createdAt: new Date().toISOString(),
-        type: 'study',
-        targetTab: 'estudos'
-      });
-    } catch (err) {}
+    // Add system notification for members
+    addAppNotification('study', '📖 Novo Estudo Publicado!', `Confira o novo estudo: "${newStudy.title}"`, 'estudos');
   };
 
   const handleDeleteStudyAndPublish = async (id: string) => {
@@ -1387,16 +1312,8 @@ export default function App() {
     // Trigger system notification & phone notification
     triggerPhoneNotification('live', '📻 Novo Programa na Rádio IPBA!', `Ouça agora: "${freshPrg.title}" apresentado por ${freshPrg.speaker}.`);
     
-    // Add system notification for members via Firestore
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        title: '📻 Novo Programa na Rádio IPBA',
-        message: `O programa "${freshPrg.title}" (${freshPrg.scheduledTime || 'Programação Agendada'}) já está disponível para ouvir na rádio da igreja!`,
-        createdAt: new Date().toISOString(),
-        type: 'live',
-        targetTab: 'home'
-      });
-    } catch (err) {}
+    // Add system notification for members
+    addAppNotification('live', '📻 Novo Programa na Rádio IPBA', `O programa "${freshPrg.title}" (${freshPrg.scheduledTime || 'Programação Agendada'}) já está disponível para ouvir na rádio da igreja!`, 'home');
   };
 
   const handleDeleteRadioProgram = async (id: string) => {
@@ -1434,16 +1351,8 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('cell', '🏘️ Nova Célula Cadastrada!', `Reunião da Célula "${newCell.title}" no bairro ${newCell.neighborhood || 'Centro'} foi criada.`);
 
-    // Add system notification for members via Firestore
-    try {
-      await addDoc(collection(db, 'notifications'), {
-        title: '🏘️ Nova Célula Cadastrada!',
-        message: `Reunião da Célula "${newCell.title}" no bairro ${newCell.neighborhood || 'Centro'} foi criada.`,
-        createdAt: new Date().toISOString(),
-        type: 'cell',
-        targetTab: 'celulas'
-      });
-    } catch (err) {}
+    // Add system notification for members
+    addAppNotification('cell', '🏘️ Nova Célula Cadastrada!', `Reunião da Célula "${newCell.title}" no bairro ${newCell.neighborhood || 'Centro'} foi criada.`, 'celulas');
   };
 
   const handleDeleteCellAndPublish = async (id: string) => {
@@ -1498,13 +1407,7 @@ export default function App() {
         approvedCount++;
         // We could add a notification per prayer, but maybe just one summary if many?
         // Let's add one notification since they are distinct requests
-        addDoc(collection(db, 'notifications'), {
-          title: '🙏 Pedido de Oração Aprovado',
-          message: `O pedido "${p.title}" foi aprovado para intercessão pública.`,
-          createdAt: new Date().toISOString(),
-          type: 'prayer',
-          targetTab: 'oracao'
-        }).catch(e => console.error("Error creating approved prayer notification:", e));
+        addAppNotification('prayer', '🙏 Pedido de Oração Aprovado', `O pedido "${p.title}" foi aprovado para intercessão pública.`, 'oracao');
       }
     });
 
@@ -1590,94 +1493,9 @@ export default function App() {
       <Header 
         user={user} 
         onNavigate={handleNavigate} 
-        deferredPrompt={deferredPrompt}
-        onInstall={handleInstallClick}
         onToggleNotifications={() => setShowNotificationsList(!showNotificationsList)}
         unreadCount={notifications.filter(n => n.unread).length}
       />
-
-      {/* Soft PWA Installation Prompt Banner */}
-      {showSoftInstallPrompt && !showSoftNotifPrompt && (
-        <div className="fixed top-24 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
-          <div className="flex items-start gap-5">
-            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-emerald-100">
-              <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
-            </div>
-            <div className="flex-grow space-y-1.5">
-              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Instalar App IPBA?</h3>
-              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Adicione o app à sua tela inicial para acesso rápido, transmissões estáveis e notificações em tempo real.
-              </p>
-              <div className="flex gap-3 pt-3">
-                <button 
-                  onClick={() => {
-                    setShowSoftInstallPrompt(false);
-                    handleInstallClick();
-                  }}
-                  className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 cursor-pointer active:scale-95"
-                >
-                  Instalar Agora
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowSoftInstallPrompt(false);
-                    localStorage.setItem('church_install_prompt_dismissed', 'true');
-                  }}
-                  className="text-slate-400 px-4 py-3 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
-                >
-                  Ignorar
-                </button>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                setShowSoftInstallPrompt(false);
-                localStorage.setItem('church_install_prompt_dismissed', 'true');
-              }}
-              className="text-slate-300 hover:text-slate-500 transition-colors p-1 -mt-1"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
-      {showSoftNotifPrompt && (
-        <div className="fixed top-24 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
-          <div className="flex items-start gap-5">
-            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
-              <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
-            </div>
-            <div className="flex-grow space-y-1.5">
-              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Ativar Notificações no App?</h3>
-              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Agora que você instalou a IPB Digital, ative os avisos para não perder cultos ao vivo e intercessões da igreja.
-              </p>
-              <div className="flex gap-3 pt-3">
-                <button 
-                  onClick={handleNativePermissionRequest}
-                  className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer active:scale-95"
-                >
-                  Sim, Ativar
-                </button>
-                <button 
-                  onClick={handleDismissSoftPrompt}
-                  className="text-slate-400 px-4 py-3 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
-                >
-                  Agora não
-                </button>
-              </div>
-            </div>
-            <button 
-              onClick={handleDismissSoftPrompt}
-              className="text-slate-300 hover:text-slate-500 transition-colors p-1 -mt-1"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Main Single-Screen Render Router Canvas */}
       <main className="pt-24 pb-32 px-6 max-w-lg mx-auto w-full flex-grow overflow-y-auto no-scrollbar relative">
@@ -1723,7 +1541,6 @@ export default function App() {
               onLoginSuccess={handleLoginSuccess}
               onShowAlert={showAlert}
               dbUsers={dbUsers}
-              onInstall={handleInstallClick}
             />
           )
         )}
@@ -1733,7 +1550,6 @@ export default function App() {
             onLoginSuccess={handleLoginSuccess}
             onShowAlert={showAlert}
             dbUsers={dbUsers}
-            onInstall={handleInstallClick}
           />
         )}
 

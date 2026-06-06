@@ -4,8 +4,6 @@ import { User as UserType } from '../types';
 interface HeaderProps {
   user: UserType | null;
   onNavigate: (tab: string) => void;
-  deferredPrompt: any;
-  onInstall: () => void;
   onToggleNotifications: () => void;
   unreadCount: number;
 }
@@ -13,8 +11,6 @@ interface HeaderProps {
 export default function Header({ 
   user, 
   onNavigate, 
-  deferredPrompt, 
-  onInstall, 
   onToggleNotifications, 
   unreadCount 
 }: HeaderProps) {

@@ -443,23 +443,19 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
             {view === 'signup' && "Cadastro de Membro"}
             {view === 'forgot' && "Recuperação de Acesso"}
           </h1>
-          {view === 'login' && onInstall ? (
-            <div className="pt-2 flex flex-col items-center gap-1.5 w-full">
-              <button 
-                type="button"
-                onClick={onInstall}
-                className="flex items-center justify-center gap-2 w-[40%] min-w-[200px] py-3.5 rounded-xl font-extrabold text-xs uppercase tracking-wider text-white bg-[#00a63e] hover:bg-[#00a63e]/90 transition-all active:scale-95 shadow-md cursor-pointer"
-              >
-                Instalar App
-              </button>
-              <span className="text-white/95 text-[11px] font-semibold tracking-wide">
-                adicione este aplicativo na sua tela inicial.
-              </span>
-            </div>
-          ) : (
+          {view === 'login' && (
             <p className="text-primary-fixed/80 text-sm font-semibold max-w-sm text-center">
-              {view === 'signup' && "Faça o seu registro para interagir, enviar orações e acompanhar planos."}
-              {view === 'forgot' && "Localize suas credenciais resgatando o login do portal."}
+              Acesse o portal da nossa igreja e fique conectado com as atividades locais.
+            </p>
+          )}
+          {view === 'signup' && (
+            <p className="text-primary-fixed/80 text-sm font-semibold max-w-sm text-center">
+              Faça o seu registro para interagir, enviar orações e acompanhar planos.
+            </p>
+          )}
+          {view === 'forgot' && (
+            <p className="text-primary-fixed/80 text-sm font-semibold max-w-sm text-center">
+              Localize suas credenciais resgatando o login do portal.
             </p>
           )}
         </div>
