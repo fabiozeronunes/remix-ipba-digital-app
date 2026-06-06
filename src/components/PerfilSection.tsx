@@ -132,9 +132,27 @@ export default function PerfilSection({
   const [showPasswords, setShowPasswords] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showNotificationsControl, setShowNotificationsControl] = useState(false);
+  const [appNotificationsBlocked, setAppNotificationsBlocked] = useState<boolean>(() => {
+    return localStorage.getItem('church_app_notifications_blocked') === 'true';
+  });
   const [systemNotifPermission, setSystemNotifPermission] = useState<string>(() => {
     return 'Notification' in window ? Notification.permission : 'unsupported';
   });
+
+  const handleToggleBlockNotifications = async () => {
+    const nextState = !appNotificationsBlocked;
+    setAppNotificationsBlocked(nextState);
+    localStorage.setItem('church_app_notifications_blocked', nextState ? 'true' : 'false');
+    
+    if (nextState) {
+      onShowAlert("🚫 Notificações bloqueadas com sucesso no aplicativo.");
+    } else {
+      onShowAlert("🔔 Notificações desbloqueadas com sucesso no aplicativo!");
+    }
+
+    // Always trigger the native system permission request, just like the home screen popup
+    await handleRequestSystemPermission();
+  };
 
   const handleRequestSystemPermission = async () => {
     if (!('Notification' in window)) {
@@ -991,45 +1009,85 @@ export default function PerfilSection({
             {showNotificationsControl && (
               <div className="bg-[#f0f2f5] p-5 border-t border-slate-200/60 space-y-4 animate-fade-in text-[#2c323f]">
                 {/* Status e Controle de Permissão de Notificações */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 mb-2">
-                   {systemNotifPermission === 'granted' ? (
-                     <div className="flex items-center gap-2.5">
-                       <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
-                         <ShieldAlert className="w-5 h-5 text-emerald-500" />
-                       </div>
-                       <div>
-                         <h4 className="text-xs font-extrabold text-[#191c1d] leading-tight">Notificações Ativadas</h4>
-                         <p className="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wide flex items-center gap-1">
-                           <Check className="w-3 h-3 stroke-[3px]" />
-                           <span>Pronto para receber alertas push</span>
-                         </p>
-                       </div>
-                     </div>
-                   ) : (
-                     <div className="bg-indigo-600 p-4 rounded-2xl shadow-md text-white space-y-3 animate-pulse-slow">
-                        <div className="flex items-start gap-3 text-left">
-                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                            <Bell className="w-6 h-6 text-white" />
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 mb-2">
+                  {appNotificationsBlocked ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center shrink-0 border border-red-100">
+                          <ShieldAlert className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold text-[#191c1d] leading-tight">Notificações Bloqueadas</h4>
+                          <p className="text-[10px] text-red-500 font-semibold mt-0.5 uppercase tracking-wide">
+                            Você bloqueou todos os alertas neste aparelho
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        type="button"
+                        onClick={handleToggleBlockNotifications}
+                        className="w-full py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>Desbloquear Notificações</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {systemNotifPermission === 'granted' ? (
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0 border border-emerald-100">
+                            <ShieldAlert className="w-5 h-5 text-emerald-500" />
                           </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-extrabold tracking-tight">Ativar Notificações no App?</h4>
-                            <p className="text-[10.5px] text-indigo-100 font-semibold leading-snug">
-                              {systemNotifPermission === 'denied' 
-                                ? 'As notificações estão bloqueadas no seu navegador. Clique abaixo para ver como liberar.' 
-                                : 'Receba avisos de transmissões ao vivo, pedidos de oração e eventos importantes.'}
+                          <div>
+                            <h4 className="text-xs font-extrabold text-[#191c1d] leading-tight">Notificações Desbloqueadas</h4>
+                            <p className="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wide flex items-center gap-1">
+                              <Check className="w-3 h-3 stroke-[3px]" />
+                              <span>Pronto para receber alertas push</span>
                             </p>
                           </div>
                         </div>
+                      ) : (
+                        <div className="flex items-start gap-3 text-left">
+                          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0 border border-amber-100">
+                            <Bell className="w-5 h-5 text-amber-500 animate-pulse" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-xs font-extrabold text-[#191c1d] tracking-tight">Notificações Desbloqueadas</h4>
+                            <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                              {systemNotifPermission === 'denied' 
+                                ? 'Permitido no app, mas bloqueado no seu navegador.' 
+                                : 'Alertas permitidos no aplicativo.'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-col gap-2 pt-1">
+                        {systemNotifPermission !== 'granted' && (
+                          <button 
+                            type="button"
+                            onClick={handleRequestSystemPermission}
+                            className="w-full py-2.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all cursor-pointer border border-indigo-100 active:scale-95 flex items-center justify-center gap-1.5"
+                          >
+                            <span>DESBLOQUEAR NOTIFICAÇÕES</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         
                         <button 
-                          onClick={handleRequestSystemPermission}
-                          className="w-full py-2.5 bg-white text-indigo-700 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                          type="button"
+                          onClick={handleToggleBlockNotifications}
+                          className="w-full py-2.5 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100/80 transition-all cursor-pointer border border-red-200 active:scale-95 flex items-center justify-center gap-1.5"
                         >
-                          {systemNotifPermission === 'denied' ? 'Como Desbloquear?' : 'Autorizar Notificações Agora'}
-                          <ChevronRight className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
+                          <span>Bloquear Notificações</span>
                         </button>
                       </div>
-                   )}
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-[10px] font-black text-indigo-950 uppercase tracking-widest block pb-1 border-b border-slate-300">

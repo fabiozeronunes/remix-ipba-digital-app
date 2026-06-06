@@ -748,6 +748,13 @@ export default function App() {
   const [phoneNotification, setPhoneNotification] = useState<{ id: string; type: 'cell' | 'event' | 'prayer' | 'live' | 'study' | 'transmission'; title: string; subtitle: string } | null>(null);
 
   const triggerPhoneNotification = (type: 'cell' | 'event' | 'prayer' | 'live' | 'study' | 'transmission', title: string, subtitle: string) => {
+    // Check if app-level notifications are blocked globally
+    const isGlobalBlocked = localStorage.getItem('church_app_notifications_blocked') === 'true';
+    if (isGlobalBlocked) {
+      console.log(`[Push] Notification of type ${type} suppressed; globally blocked in app settings.`);
+      return;
+    }
+
     let preferences = {
       live: true,
       events: true,
