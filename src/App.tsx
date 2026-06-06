@@ -148,11 +148,12 @@ export default function App() {
     const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
     
     // Se estiver na HOME e a permissão for default, mostramos o banner estrategicamente
-    if ('Notification' in window && Notification.permission === 'default' && currentTab === 'home') {
-      if (!hasDismissed || isStandalone) {
+    if ('Notification' in window && Notification.permission === 'default') {
+      if (currentTab === 'home' && (!hasDismissed || isStandalone)) {
+        console.log("[Notificações] Preparando para mostrar banner na Home...");
         const timer = setTimeout(() => {
           setShowSoftNotifPrompt(true);
-        }, 4000);
+        }, 2000); // Reduzi para 2 segundos para ser mais ágil
         return () => clearTimeout(timer);
       }
     }

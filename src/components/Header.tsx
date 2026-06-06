@@ -1,4 +1,4 @@
-import { Bell, User, Smartphone } from 'lucide-react';
+import { Bell, User } from 'lucide-react';
 import { User as UserType } from '../types';
 
 interface HeaderProps {
@@ -34,15 +34,6 @@ export default function Header({
 
        <div className="flex items-center gap-2 md:gap-4">
         {/* Notification Bell */}
-        {deferredPrompt && (
-          <button 
-            onClick={onInstall}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 transition-all active:scale-95 text-white text-[10px] font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-emerald-900/20"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Instalar App</span>
-          </button>
-        )}
         {user && (
           <button 
             onClick={onToggleNotifications}
