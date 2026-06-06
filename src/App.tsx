@@ -1472,6 +1472,23 @@ export default function App() {
     showAlert("Todas lidas!");
   };
 
+  // Desativa as notificações do tipo da aba correspondente ao clicar/entrar nela
+  useEffect(() => {
+    if (currentTab) {
+      setNotifications(prev => {
+        let changed = false;
+        const next = prev.map(n => {
+          if (n.unread && n.type === currentTab) {
+            changed = true;
+            return { ...n, unread: false };
+          }
+          return n;
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [currentTab]);
+
   const tabNotifications: Record<string, number> = {};
   notifications.forEach(n => {
     if (n.unread && n.type) {
