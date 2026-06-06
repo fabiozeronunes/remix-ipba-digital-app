@@ -143,15 +143,40 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
   const [newRecoveryPassword, setNewRecoveryPassword] = useState('');
 
   // Login as Administrator
-  const handleAdminLogin = () => {
+  const handleAdminLogin = async () => {
     const adminEmail = 'fabiozeronunes@gmail.com';
-    const storedUsers = localStorage.getItem('church_users');
-    let usersList: User[] = [];
-    if (storedUsers) {
-      usersList = JSON.parse(storedUsers);
+    const docId = getUserDocId(adminEmail);
+    let adminUser: User | null = null;
+
+    try {
+      const snap = await getDoc(doc(db, 'users', docId));
+      if (snap.exists()) {
+        adminUser = snap.data() as User;
+        adminUser.name = 'Fabio Nunes';
+        adminUser.category = 'Coordenador / Admin ( Total )';
+        // Add defaults for essential new fields if completely missing on online document
+        if (adminUser.status === undefined) adminUser.status = 'Ativo';
+        if (adminUser.ministry === undefined) adminUser.ministry = 'Liderança';
+        await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
+        console.log("Perfil do administrador carregado e sincronizado com o Firestore.");
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar administrador do Firestore diretamente no LoginSection:", e);
     }
-    
-    let adminUser = usersList.find(u => u.email?.trim().toLowerCase() === adminEmail);
+
+    if (!adminUser) {
+      // Find inside dbUsers or fallback to local search
+      adminUser = (dbUsers || []).find(u => u.email?.trim().toLowerCase() === adminEmail) || null;
+      if (!adminUser) {
+        const storedUsers = localStorage.getItem('church_users');
+        let usersList: User[] = [];
+        if (storedUsers) {
+          try { usersList = JSON.parse(storedUsers); } catch (e) {}
+        }
+        adminUser = usersList.find(u => u.email?.trim().toLowerCase() === adminEmail) || null;
+      }
+    }
+
     if (!adminUser) {
       adminUser = {
         name: 'Fabio Nunes',
@@ -165,20 +190,28 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
         eventCount: 1,
         ministry: 'Liderança',
         address: 'Bairro Centro',
-        birthDate: '1985-08-20'
+        birthDate: '1985-08-20',
+        status: 'Ativo'
       };
-      if (usersList.length > 0) {
-        usersList.push(adminUser);
-      } else {
-        usersList = [adminUser];
-      }
-      localStorage.setItem('church_users', JSON.stringify(usersList));
     } else {
       adminUser.name = 'Fabio Nunes';
       adminUser.category = 'Coordenador / Admin ( Total )';
-      localStorage.setItem('church_users', JSON.stringify(usersList));
     }
-    
+
+    // Save/update list in local storage
+    const storedUsers = localStorage.getItem('church_users');
+    let usersList: User[] = [];
+    if (storedUsers) {
+      try { usersList = JSON.parse(storedUsers); } catch (e) {}
+    }
+    const idx = usersList.findIndex(u => u.email?.trim().toLowerCase() === adminEmail);
+    if (idx !== -1) {
+      usersList[idx] = adminUser;
+    } else {
+      usersList.push(adminUser);
+    }
+    localStorage.setItem('church_users', JSON.stringify(usersList));
+
     onLoginSuccess(adminUser);
     onShowAlert('Seja bem-vindo de volta, Fabio Nunes! Sessão de administrador iniciada.');
   };
@@ -199,7 +232,21 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
     // Look up in dbUsers first
     let matchedUser = usersList.find(u => u.email?.trim().toLowerCase() === cleanEmail);
 
-    // 1. If not found in online db list, look inside the local storage backup
+    // If not found in the state array, query Firestore directly for the live up-to-date document
+    if (!matchedUser) {
+      try {
+        const docId = getUserDocId(cleanEmail);
+        const directDocSnap = await getDoc(doc(db, 'users', docId));
+        if (directDocSnap.exists()) {
+          matchedUser = directDocSnap.data() as User;
+          console.log("Membro encontrado diretamente no Firestore online durante o login:", matchedUser);
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar membro diretamente no Firestore online:", err);
+      }
+    }
+
+    // 1. If not found in online db or direct online query, look inside the local storage backup
     if (!matchedUser) {
       const rawLocal = localStorage.getItem('church_users');
       if (rawLocal) {

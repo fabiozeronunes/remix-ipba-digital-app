@@ -1,9 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permit broad access to all collections to align with the application's custom authentication system
+    // Restrict access to authenticated clients (including anonymous authenticated sessions)
+    // to align with the application's custom client-side authentication and session management.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }

@@ -65,6 +65,7 @@ interface AdminSectionProps {
   onDeleteRadioProgram: (id: string) => void;
   onUpdateRadioProgram?: (updatedPrg: RadioProgram) => void;
   onUpdateUser?: (updated: any, targetEmail?: string) => void;
+  onDeleteUser?: (email: string) => void;
   dbUsers?: User[];
   propTransmissions?: any[];
   propCargos?: string[];
@@ -100,6 +101,7 @@ export default function AdminSection({
   onDeleteRadioProgram,
   onUpdateRadioProgram,
   onUpdateUser,
+  onDeleteUser,
   dbUsers: propDbUsers,
   propTransmissions,
   propCargos,
@@ -543,6 +545,10 @@ export default function AdminSection({
     try {
       const docId = getUserDocId(email);
       await deleteDoc(doc(db, 'users', docId));
+
+      if (onDeleteUser) {
+        onDeleteUser(email);
+      }
 
       // Clean/update local storage 'church_users' immediately on delete to prevent any resurrection synchronization races
       const rawLocal = localStorage.getItem('church_users');

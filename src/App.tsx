@@ -37,6 +37,7 @@ import {
   collection, 
   onSnapshot, 
   doc, 
+  getDoc,
   setDoc, 
   updateDoc, 
   deleteDoc, 
@@ -127,7 +128,17 @@ export default function App() {
   };
   
   // Real-time Firestore backed states with default fallback
-  const [dbUsers, setDbUsers] = useState<User[]>([]);
+  const [dbUsers, setDbUsers] = useState<User[]>(() => {
+    const rawLocal = localStorage.getItem('church_users');
+    if (rawLocal) {
+      try {
+        return JSON.parse(rawLocal);
+      } catch (e) {
+        console.warn("Error parsing initial local church_users:", e);
+      }
+    }
+    return [];
+  });
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
@@ -1000,31 +1011,52 @@ export default function App() {
 
   const handleAdminLogin = async () => {
     const adminEmail = 'fabiozeronunes@gmail.com';
-    let adminUser = dbUsers.find(u => u.email?.trim().toLowerCase() === adminEmail);
+    const docId = getUserDocId(adminEmail);
+    let adminUser: User | null = null;
+    
+    try {
+      const snap = await getDoc(doc(db, 'users', docId));
+      if (snap.exists()) {
+        adminUser = snap.data() as User;
+        adminUser.name = 'Fabio Nunes';
+        adminUser.category = 'Coordenador / Admin ( Total )';
+        // Ensure defaults if fields are empty
+        if (adminUser.status === undefined) adminUser.status = 'Ativo';
+        if (adminUser.ministry === undefined) adminUser.ministry = 'Liderança';
+        await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
+        console.log("Admin loaded successfully directly from Firestore online:", adminUser);
+      }
+    } catch (e) {
+      console.warn("Error getting admin from Firestore directly on login:", e);
+    }
+
     if (!adminUser) {
-      adminUser = {
-        name: 'Fabio Nunes',
-        email: adminEmail,
-        phone: '(11) 99999-7777',
-        password: '1q2w3e4r',
-        category: 'Coordenador / Admin ( Total )',
-        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFzVPt8R12b6r0cJenxhGMSaRCVhnj5m2I1L63zIXLkZLH0Irma2hv_P5qK-GMNH3b3kCM43ZW9Q4PH9K2SiHy7-ODE2cNb2t8A_zr-BxvnChqsgjZT1LXBuf2HL7pp1fSDQrGvEk4mrCFhimqMvSUYOfz3wbz8iN8rRH9nRmA9gRdo6n7D4xRFLdEgI2ndKUZKvYauk-Nvw84QWoH51RjXus-LV6oWVbwI4n3EBJX3_zjwxm5Rnn2tM0Qd7UVF_wjMD9kxH-nvnE',
-        planCount: 4,
-        prayerCount: 2,
-        eventCount: 1,
-        ministry: 'Liderança',
-        address: 'Bairro Centro',
-        birthDate: '1985-08-20',
-        status: 'Ativo'
-      };
+      // Fallback: check within dbUsers or generate defaults
+      adminUser = dbUsers.find(u => u.email?.trim().toLowerCase() === adminEmail) || null;
       
-      const docId = getUserDocId(adminEmail);
-      await setDoc(doc(db, 'users', docId), adminUser);
-    } else {
-      adminUser.name = 'Fabio Nunes';
-      adminUser.category = 'Coordenador / Admin ( Total )';
-      const docId = getUserDocId(adminEmail);
-      await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
+      if (!adminUser) {
+        adminUser = {
+          name: 'Fabio Nunes',
+          email: adminEmail,
+          phone: '(11) 99999-7777',
+          password: '1q2w3e4r',
+          category: 'Coordenador / Admin ( Total )',
+          avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFzVPt8R12b6r0cJenxhGMSaRCVhnj5m2I1L63zIXLkZLH0Irma2hv_P5qK-GMNH3b3kCM43ZW9Q4PH9K2SiHy7-ODE2cNb2t8A_zr-BxvnChqsgjZT1LXBuf2HL7pp1fSDQrGvEk4mrCFhimqMvSUYOfz3wbz8iN8rRH9nRmA9gRdo6n7D4xRFLdEgI2ndKUZKvYauk-Nvw84QWoH51RjXus-LV6oWVbwI4n3EBJX3_zjwxm5Rnn2tM0Qd7UVF_wjMD9kxH-nvnE',
+          planCount: 4,
+          prayerCount: 2,
+          eventCount: 1,
+          ministry: 'Liderança',
+          address: 'Bairro Centro',
+          birthDate: '1985-08-20',
+          status: 'Ativo',
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'users', docId), adminUser);
+      } else {
+        adminUser.name = 'Fabio Nunes';
+        adminUser.category = 'Coordenador / Admin ( Total )';
+        await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
+      }
     }
     
     handleLoginSuccess(adminUser);
@@ -1072,6 +1104,21 @@ export default function App() {
         updatedAt: new Date().toISOString()
       }, { merge: true })
         .catch(err => console.error("Error updating user in Firestore:", err));
+    }
+  };
+
+  const handleDeleteUser = (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    setDbUsers(prev => {
+      const nextUsers = prev.filter(u => (u.email || '').trim().toLowerCase() !== cleanEmail);
+      localStorage.setItem('church_users', JSON.stringify(nextUsers));
+      return nextUsers;
+    });
+
+    if (user?.email && user.email.trim().toLowerCase() === cleanEmail) {
+      setUser(null);
+      localStorage.removeItem('church_current_user');
+      setCurrentTab('login');
     }
   };
 
@@ -1503,8 +1550,7 @@ export default function App() {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-surface font-sans text-on-surface flex flex-col relative pb-24">
+    <div className="h-screen h-[100dvh] w-full bg-surface font-sans text-on-surface flex flex-col overflow-hidden relative">
       
       {/* Brand Top Header Bar Component */}
       <Header 
@@ -1600,7 +1646,7 @@ export default function App() {
       )}
 
       {/* Main Single-Screen Render Router Canvas */}
-      <main className="pt-24 px-6 max-w-lg mx-auto w-full flex-grow relative">
+      <main className="pt-24 pb-32 px-6 max-w-lg mx-auto w-full flex-grow overflow-y-auto no-scrollbar relative">
         
         {/* Render active section tab component */}
         {currentTab === 'home' && (
@@ -1746,6 +1792,7 @@ export default function App() {
               onDeleteRadioProgram={handleDeleteRadioProgram}
               onUpdateRadioProgram={handleUpdateRadioProgram}
               onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
               dbUsers={dbUsers}
               propTransmissions={transmissions}
               propCargos={cargos}
@@ -2140,8 +2187,7 @@ export default function App() {
       )}
 
       {/* Bottom Scrollable navigation bar Component */}
-    </div>
-    <BottomNav 
+      <BottomNav 
         currentTab={currentTab} 
         onNavigate={handleNavigate}
         userLogged={!!user}
@@ -2149,6 +2195,6 @@ export default function App() {
         isVisitor={user?.category === 'Visitante'}
         tabNotifications={tabNotifications}
       />
-    </>
+    </div>
   );
 }
