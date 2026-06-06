@@ -30,11 +30,12 @@ import {
   Radio,
   MessageCircle,
   RefreshCw,
-  LifeBuoy
+  LifeBuoy,
+  Megaphone
 } from 'lucide-react';
 import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram, SupportOption, SupportTicket } from '../types';
 import { db, getUserDocId, handleFirestoreError, OperationType } from '../firebase';
-import { doc, setDoc, deleteDoc, writeBatch, collection, addDoc, onSnapshot, updateDoc, getDocs } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, writeBatch, collection, addDoc, onSnapshot, updateDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 interface AdminSectionProps {
   events: ChurchEvent[];
@@ -107,11 +108,47 @@ export default function AdminSection({
   propCargos,
   isAuthReady = true
 }: AdminSectionProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options'>(() => {
+  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options' | 'notifications'>(() => {
     return (localStorage.getItem('church_admin_active_subtab') as any) || 'events';
   });
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: string, action: () => void, name: string } | null>(null);
   const [openCargoDropdownId, setOpenCargoDropdownId] = useState<string | null>(null);
+
+  // Notifications Admin States
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifTarget, setNotifTarget] = useState<'home' | 'eventos' | 'oracao' | 'celulas' | 'perfil' | 'estudos' | 'aovivo'>('home');
+  const [globalNotifs, setGlobalNotifs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isAuthReady) return;
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(20));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setGlobalNotifs(list);
+    });
+    return () => unsubscribe();
+  }, [isAuthReady]);
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifTitle.trim() || !notifMessage.trim()) return;
+    
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        title: notifTitle,
+        message: notifMessage,
+        targetTab: notifTarget,
+        createdAt: new Date().toISOString(),
+        adminEmail: currentUserIdEmail || 'admin@ipba.com'
+      });
+      setNotifTitle('');
+      setNotifMessage('');
+      alert("Notificação enviada com sucesso para todos os membros!");
+    } catch (err) {
+      console.error("Error sending notification:", err);
+    }
+  };
 
   // Support Feature Admin states
   const [supportOptionsList, setSupportOptionsList] = useState<SupportOption[]>([]);
@@ -1507,6 +1544,17 @@ export default function AdminSection({
         >
           <LifeBuoy className="w-4 h-4 shrink-0" />
           <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Erros/Suporte 🛠️</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('notifications')}
+          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all ${
+            activeSubTab === 'notifications' ? 'bg-[#002d5e] text-amber-400 font-extrabold shadow' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <Megaphone className="w-4 h-4 shrink-0" />
+          <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Mural/Avisos 📢</span>
         </button>
       </div>
 
@@ -4457,6 +4505,106 @@ export default function AdminSection({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* RENDER NOTIFICATIONS TAB */}
+      {activeSubTab === 'notifications' && (
+        <div className="space-y-6 animate-fade-in text-left mb-6">
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+            <h3 className="font-extrabold text-[#001939] text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <Megaphone className="w-5 h-5 text-indigo-750" />
+              <span>Enviar Comunicado Global (Mural)</span>
+            </h3>
+
+            <form onSubmit={handleSendNotification} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Título do Comunicado</label>
+                <input
+                  type="text"
+                  required
+                  value={notifTitle}
+                  onChange={(e) => setNotifTitle(e.target.value)}
+                  className="w-full bg-[#f3f4f5] border-none rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-primary text-[#191c1d] font-bold"
+                  placeholder="Ex: Culto Especial de Domingo"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Mensagem / Conteúdo</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={notifMessage}
+                  onChange={(e) => setNotifMessage(e.target.value)}
+                  className="w-full bg-[#f3f4f5] border-none rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-primary text-[#191c1d] font-bold"
+                  placeholder="Descreva o aviso que todos os membros receberão..."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">Redirecionar para Aba</label>
+                <select
+                  value={notifTarget}
+                  onChange={(e) => setNotifTarget(e.target.value as any)}
+                  className="w-full bg-[#f3f4f5] border-none rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-primary text-[#191c1d] font-bold"
+                >
+                  <option value="home">Página Inicial (Home)</option>
+                  <option value="eventos">Eventos e Calendário</option>
+                  <option value="oracao">Pedidos de Oração</option>
+                  <option value="celulas">Nossas Células</option>
+                  <option value="estudos">Estudos Bíblicos</option>
+                  <option value="aovivo">Transmissões Ao Vivo</option>
+                  <option value="perfil">Meu Perfil</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-[#001939] hover:bg-[#002d5e] text-amber-400 font-black text-[10px] uppercase tracking-[0.1em] transition-all rounded-2xl shadow-lg active:scale-95 cursor-pointer"
+              >
+                PUBLICAR AVISO NO MURAL
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+             <h3 className="font-extrabold text-[#001939] text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <Activity className="w-5 h-5 text-indigo-750" />
+              <span>Histórico de comunicados enviados</span>
+            </h3>
+
+            <div className="space-y-3">
+              {globalNotifs.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-4 text-center">Nenhum comunicado enviado recentemente.</p>
+              ) : (
+                globalNotifs.map((notif: any) => (
+                  <div key={notif.id} className="p-4 border border-slate-100 rounded-2xl bg-slate-50 relative group">
+                    <button 
+                      onClick={async () => {
+                        if (confirm("Deseja realmente apagar esta notificação do mural? ela deixará de aparecer para os membros.")) {
+                          try {
+                            await deleteDoc(doc(db, 'notifications', notif.id));
+                          } catch (e) {}
+                        }
+                      }}
+                      className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="pr-8">
+                      <p className="text-[11px] font-black text-indigo-900 mb-1">{notif.title}</p>
+                      <p className="text-[10px] text-slate-600 font-medium mb-3 whitespace-pre-line leading-relaxed">{notif.message}</p>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/50">
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{new Date(notif.createdAt).toLocaleString('pt-BR')}</span>
+                        <span className="bg-amber-100 text-amber-700 font-black text-[8px] px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-tight">{notif.targetTab}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 

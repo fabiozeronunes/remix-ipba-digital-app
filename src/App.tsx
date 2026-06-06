@@ -39,6 +39,7 @@ import {
   doc, 
   getDoc,
   setDoc, 
+  addDoc,
   updateDoc, 
   deleteDoc, 
   query, 
@@ -220,6 +221,45 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Sync Global Notifications from Firestore
+  useEffect(() => {
+    if (!isAuthReady) return;
+    let isInitialRun = true;
+    
+    const unsubscribe = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          const notifId = change.doc.id;
+          
+          setNotifications(prev => {
+            if (prev.some(n => n.id === notifId)) return prev;
+            
+            const newNotif: AppNotification = {
+              id: notifId,
+              title: data.title || 'Aviso da Igreja',
+              text: data.message || '',
+              time: data.createdAt ? new Date(data.createdAt).toLocaleString('pt-BR') : 'Agora mesmo',
+              unread: true,
+              type: data.targetTab || 'home'
+            };
+
+            // Trigger floating push notification ONLY if not initial run
+            if (!isInitialRun) {
+              triggerPhoneNotification(data.type || 'cell', data.title, data.message);
+            }
+            
+            return [newNotif, ...prev];
+          });
+        }
+      });
+      isInitialRun = false;
+    }, (error) => {
+      console.warn("Firestore Notifications fetch failed:", error);
+    });
+    return () => unsubscribe();
+  }, [isAuthReady]);
+
   const addAppNotification = (type: string, title: string, subtitle: string, targetTab: any) => {
     // 1. Trigger the Top Toast (Phone Push UI)
     triggerPhoneNotification(type as any, title, subtitle);
@@ -249,22 +289,6 @@ export default function App() {
         }
       });
 
-      // Realtime prayer notifications
-      if (!isInitialRun) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
-            const data = change.doc.data() as PrayerRequest;
-            const currentUser = userRef.current;
-            if (currentUser && data.authorEmail?.toLowerCase() === currentUser.email?.toLowerCase()) return;
-            
-            if (data.aprovado) {
-              addAppNotification('prayer', '🙏 Novo Pedido de Oração!', `Interceda pelo pedido: "${data.title}".`, 'oracao');
-            }
-          }
-        });
-      }
-
-      isInitialRun = false;
       setPrayers(list);
     }, (error) => {
       console.warn("Firestore Prayers fetch failed:", error);
@@ -284,17 +308,6 @@ export default function App() {
         }
       });
 
-      // Realtime cell notifications
-      if (!isInitialRun) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
-            const data = change.doc.data() as Cell;
-            addAppNotification('cell', '🏘️ Nova Célula Cadastrada!', `Reunião da Célula "${data.title}" foi criada.`, 'celulas');
-          }
-        });
-      }
-
-      isInitialRun = false;
       setCells(list);
     }, (error) => {
       console.warn("Firestore Cells fetch failed:", error);
@@ -374,17 +387,6 @@ export default function App() {
         }
       });
 
-      // Realtime notification detection logic based on docChanges
-      if (!isInitialRun) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
-            const data = change.doc.data() as ChurchEvent;
-            addAppNotification('event', '📅 Novo Evento!', `Não perca: "${data.title}" foi agendado.`, 'eventos');
-          }
-        });
-      }
-
-      isInitialRun = false;
       setEvents(list);
     }, (error) => {
       console.warn("Firestore Events fetch failed:", error);
@@ -404,17 +406,6 @@ export default function App() {
         }
       });
 
-      // Realtime study notifications
-      if (!isInitialRun) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
-            const data = change.doc.data() as ChurchStudy;
-            addAppNotification('study' as any, '📖 Novo Estudo Publicado!', `Confira o novo estudo: "${data.title}"`, 'estudos');
-          }
-        });
-      }
-
-      isInitialRun = false;
       setStudies(list);
     }, (error) => {
       console.warn("Firestore Studies fetch failed:", error);
@@ -449,17 +440,6 @@ export default function App() {
         list.push({ id: snapDoc.id, ...snapDoc.data() });
       });
 
-      // Realtime transmission/live notifications
-      if (!isInitialRun) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
-            const data = change.doc.data();
-            addAppNotification('live', '📡 Nova Transmissão Agendada!', `Título: "${data.title}"`, 'aovivo');
-          }
-        });
-      }
-
-      isInitialRun = false;
       setTransmissions(list);
     }, (error) => {
       console.warn("Firestore Transmissions fetch failed:", error);
@@ -1292,18 +1272,16 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Novo Evento Cadastrado!', `Não perca: "${newEvent.title}" foi agendado.`);
 
-    // Add system notification for members
-    setNotifications(prev => [
-      {
-        id: `nt-ev-${Date.now()}`,
+    // Add system notification for members via Firestore
+    try {
+      await addDoc(collection(db, 'notifications'), {
         title: 'Nova Atividade Publicada',
-        text: `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`,
-        time: 'Agora mesmo',
-        unread: true,
-        type: 'eventos'
-      },
-      ...prev
-    ]);
+        message: `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`,
+        createdAt: new Date().toISOString(),
+        type: 'event',
+        targetTab: 'eventos'
+      });
+    } catch (err) {}
   };
 
   const handleDeleteEventAndPublish = async (id: string) => {
@@ -1332,18 +1310,16 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Evento Atualizado!', `Atenção: o evento "${updatedEvent.title}" foi atualizado.`);
 
-    // Add system notification for members
-    setNotifications(prev => [
-      {
-        id: `nt-ev-upd-${Date.now()}`,
+    // Add system notification for members via Firestore
+    try {
+      await addDoc(collection(db, 'notifications'), {
         title: 'Atividade Atualizada',
-        text: `As informações da atividade "${updatedEvent.title}" foram atualizadas.`,
-        time: 'Agora mesmo',
-        unread: true,
-        type: 'eventos'
-      },
-      ...prev
-    ]);
+        message: `As informações da atividade "${updatedEvent.title}" foram atualizadas.`,
+        createdAt: new Date().toISOString(),
+        type: 'event',
+        targetTab: 'eventos'
+      });
+    } catch (err) {}
   };
 
   // Add Studies state handlers
@@ -1360,6 +1336,17 @@ export default function App() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `studies/${id}`);
     }
+
+    // Add system notification for members via Firestore
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        title: '📖 Novo Estudo Publicado!',
+        message: `Confira o novo estudo: "${newStudy.title}"`,
+        createdAt: new Date().toISOString(),
+        type: 'study',
+        targetTab: 'estudos'
+      });
+    } catch (err) {}
   };
 
   const handleDeleteStudyAndPublish = async (id: string) => {
@@ -1399,17 +1386,17 @@ export default function App() {
     
     // Trigger system notification & phone notification
     triggerPhoneNotification('live', '📻 Novo Programa na Rádio IPBA!', `Ouça agora: "${freshPrg.title}" apresentado por ${freshPrg.speaker}.`);
-    setNotifications(prev => [
-      {
-        id: `nt-rad-${Date.now()}`,
+    
+    // Add system notification for members via Firestore
+    try {
+      await addDoc(collection(db, 'notifications'), {
         title: '📻 Novo Programa na Rádio IPBA',
-        text: `O programa "${freshPrg.title}" (${freshPrg.scheduledTime || 'Programação Agendada'}) já está disponível para ouvir na rádio da igreja!`,
-        time: 'Agora mesmo',
-        unread: true,
-        type: 'home'
-      },
-      ...prev
-    ]);
+        message: `O programa "${freshPrg.title}" (${freshPrg.scheduledTime || 'Programação Agendada'}) já está disponível para ouvir na rádio da igreja!`,
+        createdAt: new Date().toISOString(),
+        type: 'live',
+        targetTab: 'home'
+      });
+    } catch (err) {}
   };
 
   const handleDeleteRadioProgram = async (id: string) => {
@@ -1446,6 +1433,17 @@ export default function App() {
 
     // Trigger smartphone notification!
     triggerPhoneNotification('cell', '🏘️ Nova Célula Cadastrada!', `Reunião da Célula "${newCell.title}" no bairro ${newCell.neighborhood || 'Centro'} foi criada.`);
+
+    // Add system notification for members via Firestore
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        title: '🏘️ Nova Célula Cadastrada!',
+        message: `Reunião da Célula "${newCell.title}" no bairro ${newCell.neighborhood || 'Centro'} foi criada.`,
+        createdAt: new Date().toISOString(),
+        type: 'cell',
+        targetTab: 'celulas'
+      });
+    } catch (err) {}
   };
 
   const handleDeleteCellAndPublish = async (id: string) => {
@@ -1479,6 +1477,42 @@ export default function App() {
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `prayers/${id}`);
+    }
+  };
+
+  const handleSaveAllPrayers = async (updatedList: PrayerRequest[]) => {
+    const batch = writeBatch(db);
+    let approvedCount = 0;
+
+    updatedList.forEach(p => {
+      // Find original to see if it was just approved to send notification
+      const original = prayers.find(orig => orig.id === p.id);
+      const isNewlyApproved = p.aprovado && (!original || !original.aprovado);
+      
+      batch.set(doc(db, 'prayers', p.id), {
+        ...p,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      if (isNewlyApproved) {
+        approvedCount++;
+        // We could add a notification per prayer, but maybe just one summary if many?
+        // Let's add one notification since they are distinct requests
+        addDoc(collection(db, 'notifications'), {
+          title: '🙏 Pedido de Oração Aprovado',
+          message: `O pedido "${p.title}" foi aprovado para intercessão pública.`,
+          createdAt: new Date().toISOString(),
+          type: 'prayer',
+          targetTab: 'oracao'
+        }).catch(e => console.error("Error creating approved prayer notification:", e));
+      }
+    });
+
+    try {
+      await batch.commit();
+      setPrayers(updatedList);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'prayers_batch');
     }
   };
 
@@ -1780,7 +1814,7 @@ export default function App() {
               onDeleteContribution={handleDeleteContribution}
               onDeletePrayer={handleDeletePrayer}
               onUpdatePrayerVisibility={handleUpdatePrayerVisibility}
-              onSaveAllPrayers={(updatedList) => setPrayers(updatedList)}
+              onSaveAllPrayers={handleSaveAllPrayers}
               onShowAlert={showAlert}
               onNotifyCreated={triggerPhoneNotification}
               studies={studies}
