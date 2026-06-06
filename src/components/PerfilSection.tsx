@@ -27,7 +27,8 @@ import {
   EyeOff,
   Smartphone,
   Laptop,
-  Upload
+  Upload,
+  Bell
 } from 'lucide-react';
 import { User, PrayerRequest } from '../types';
 import React, { useState, useEffect } from 'react';
@@ -130,6 +131,28 @@ export default function PerfilSection({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [showNotificationsControl, setShowNotificationsControl] = useState(false);
+  const [notifPreferences, setNotifPreferences] = useState(() => {
+    const saved = localStorage.getItem('church_notif_preferences');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      live: true,
+      events: true,
+      prayers: true,
+      cells: true,
+      studies: true
+    };
+  });
+
+  const handleToggleNotifPreference = (key: 'live' | 'events' | 'prayers' | 'cells' | 'studies') => {
+    const nextPrf = { ...notifPreferences, [key]: !notifPreferences[key] };
+    setNotifPreferences(nextPrf);
+    localStorage.setItem('church_notif_preferences', JSON.stringify(nextPrf));
+  };
 
   const [sessionDevices, setSessionDevices] = useState([
     { id: '1', name: 'iPhone 15 Pro • São Paulo, SP', desc: 'Sessão atual • Ativo agora', isCurrent: true },
@@ -924,7 +947,64 @@ export default function PerfilSection({
             <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
           </div>
 
-          {/* Clean Light/Dark mode toggler for fun */}
+          {/* Configuração de Notificações */}
+          <div className="flex flex-col">
+            <div 
+              onClick={() => setShowNotificationsControl(!showNotificationsControl)}
+              className="flex items-center justify-between p-5 hover:bg-slate-200/40 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#e8eefd] flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-indigo-700" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-[#191c1d] block">Configuração de Notificações</span>
+                  <span className="text-[10px] text-slate-500 font-semibold">Selecione os avisos que deseja receber no app</span>
+                </div>
+              </div>
+              <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform ${showNotificationsControl ? 'rotate-90 text-indigo-600' : 'group-hover:translate-x-1'}`} />
+            </div>
+
+            {showNotificationsControl && (
+              <div className="bg-[#f0f2f5] p-5 border-t border-slate-200/60 space-y-4 animate-fade-in text-[#2c323f]">
+                <p className="text-[10px] font-black text-indigo-950 uppercase tracking-widest block pb-1 border-b border-slate-300">
+                  Canais de Notificação Ativos
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  {[
+                    { key: 'live', label: 'Transmissões Ao Vivo', desc: 'Avisar quando a igreja iniciar um culto ou live' },
+                    { key: 'events', label: 'Eventos e Atividades', desc: 'Notificações de novos eventos, datas e agendas' },
+                    { key: 'prayers', label: 'Novos Pedidos de Oração', desc: 'Alertas quando irmãos postarem pedidos de intercessão' },
+                    { key: 'cells', label: 'Avisos da sua Célula', desc: 'Lembretes e agendas semanais da célula local' },
+                    { key: 'studies', label: 'Novos Estudos Bíblicos', desc: 'Alertas de novos estudos bíblicos e devocionais' }
+                  ].map((item) => (
+                    <div 
+                      key={item.key} 
+                      onClick={() => handleToggleNotifPreference(item.key as any)}
+                      className="bg-white p-3.5 rounded-xl border border-slate-200/80 cursor-pointer flex items-center justify-between gap-3 shadow-xs hover:border-indigo-200/80 transition-colors text-left"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-[#191c1d] block leading-tight">{item.label}</span>
+                        <span className="text-[10.5px] text-slate-400 font-semibold block leading-snug">{item.desc}</span>
+                      </div>
+                      
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
+                        notifPreferences[item.key as keyof typeof notifPreferences] 
+                          ? 'bg-indigo-600 border-indigo-600 text-white' 
+                          : 'border-slate-300 bg-slate-50'
+                      }`}>
+                        {notifPreferences[item.key as keyof typeof notifPreferences] && (
+                          <Check className="w-3.5 h-3.5 stroke-[3px]" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div 
             onClick={() => {
               setThemeDark(!themeDark);

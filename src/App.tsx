@@ -23,7 +23,6 @@ import EstudosSection from './components/EstudosSection';
 import EventosSection from './components/EventosSection';
 import AdminSection from './components/AdminSection';
 import SuporteSection from './components/SuporteSection';
-import NotificationsPopup from './components/NotificationsPopup';
 
 import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram } from './types';
 import { 
@@ -143,12 +142,6 @@ export default function App() {
     userRef.current = user;
   }, [user]);
 
-  const lastProcessedEventsRef = useRef(new Date().toISOString());
-  const lastProcessedCellsRef = useRef(new Date().toISOString());
-  const lastProcessedPrayersRef = useRef(new Date().toISOString());
-  const lastProcessedStudiesRef = useRef(new Date().toISOString());
-  const lastProcessedTransmissionsRef = useRef(new Date().toISOString());
-
   // Background Firebase anonymous login to ensure all queries succeed if not signed in with Google
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
@@ -168,9 +161,27 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  const addAppNotification = (type: string, title: string, subtitle: string, targetTab: any) => {
+    // 1. Trigger the Top Toast (Phone Push UI)
+    triggerPhoneNotification(type as any, title, subtitle);
+    
+    // 2. Add to history list
+    const newNotif: AppNotification = {
+      id: `nt-${type}-${Date.now()}`,
+      title: title,
+      text: subtitle,
+      time: 'Agora mesmo',
+      unread: true,
+      type: targetTab
+    };
+    
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
   // Sync Prayers
   useEffect(() => {
     if (!isAuthReady) return;
+    let isInitialRun = true;
     const unsubscribe = onSnapshot(collection(db, 'prayers'), (snapshot) => {
       const list: PrayerRequest[] = [];
       snapshot.forEach((snapDoc) => {
@@ -180,30 +191,21 @@ export default function App() {
       });
 
       // Realtime prayer notifications
-      snapshot.docChanges().forEach((change) => {
-        if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
-          const data = change.doc.data() as PrayerRequest;
-          if (data.aprovado && data.updatedAt && data.updatedAt > lastProcessedPrayersRef.current) {
+      if (!isInitialRun) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
+            const data = change.doc.data() as PrayerRequest;
             const currentUser = userRef.current;
             if (currentUser && data.authorEmail?.toLowerCase() === currentUser.email?.toLowerCase()) return;
             
-            triggerPhoneNotification('prayer', '🙏 Novo Pedido de Oração!', `Interceda pelo pedido: "${data.title}".`);
-            setNotifications(prev => [
-              {
-                id: `nt-pr-rt-${Date.now()}`,
-                title: '🙏 Novo Pedido de Oração',
-                text: `Interceda pelo pedido: "${data.title}". Encontrou apoio espiritual.`,
-                time: 'Agora mesmo',
-                unread: true,
-                type: 'oracao'
-              },
-              ...prev
-            ]);
+            if (data.aprovado) {
+              addAppNotification('prayer', '🙏 Novo Pedido de Oração!', `Interceda pelo pedido: "${data.title}".`, 'oracao');
+            }
           }
-        }
-      });
+        });
+      }
 
-      lastProcessedPrayersRef.current = new Date().toISOString();
+      isInitialRun = false;
       setPrayers(list);
     }, (error) => {
       console.warn("Firestore Prayers fetch failed:", error);
@@ -214,6 +216,7 @@ export default function App() {
   // Sync Cells
   useEffect(() => {
     if (!isAuthReady) return;
+    let isInitialRun = true;
     const unsubscribe = onSnapshot(collection(db, 'cells'), (snapshot) => {
       const list: Cell[] = [];
       snapshot.forEach((snapDoc) => {
@@ -223,29 +226,16 @@ export default function App() {
       });
 
       // Realtime cell notifications
-      snapshot.docChanges().forEach((change) => {
-        if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
-          const data = change.doc.data() as Cell;
-          if (data.updatedAt && data.updatedAt > lastProcessedCellsRef.current) {
-            triggerPhoneNotification('cell', change.type === 'added' ? '🏘️ Nova Célula Cadastrada!' : '🔄 Célula Atualizada', data.title);
-            setNotifications(prev => [
-              {
-                id: `nt-cell-rt-${Date.now()}`,
-                title: change.type === 'added' ? '🏘️ Nova Célula' : '🔄 Célula Atualizada',
-                text: change.type === 'added' 
-                  ? `Reunião da Célula "${data.title}" no bairro ${data.neighborhood || 'Centro'} foi criada.`
-                  : `As informações da Célula "${data.title}" foram atualizadas.`,
-                time: 'Agora mesmo',
-                unread: true,
-                type: 'celulas'
-              },
-              ...prev
-            ]);
+      if (!isInitialRun) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
+            const data = change.doc.data() as Cell;
+            addAppNotification('cell', '🏘️ Nova Célula Cadastrada!', `Reunião da Célula "${data.title}" foi criada.`, 'celulas');
           }
-        }
-      });
+        });
+      }
 
-      lastProcessedCellsRef.current = new Date().toISOString();
+      isInitialRun = false;
       setCells(list);
     }, (error) => {
       console.warn("Firestore Cells fetch failed:", error);
@@ -311,6 +301,7 @@ export default function App() {
   // Sync Events
   useEffect(() => {
     if (!isAuthReady) return;
+    let isInitialRun = true;
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const list: ChurchEvent[] = [];
       snapshot.forEach((snapDoc) => {
@@ -325,30 +316,16 @@ export default function App() {
       });
 
       // Realtime notification detection logic based on docChanges
-      snapshot.docChanges().forEach((change) => {
-        if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
-          const data = change.doc.data() as ChurchEvent;
-          // Only trigger if updatedAt is newer than when we started/last checked
-          if (data.updatedAt && data.updatedAt > lastProcessedEventsRef.current) {
-            triggerPhoneNotification('event', change.type === 'added' ? '📅 Novo Evento!' : '🔄 Evento Atualizado', data.title);
-            setNotifications(prev => [
-              {
-                id: `nt-ev-rt-${Date.now()}`,
-                title: change.type === 'added' ? '📅 Novo Evento' : '🔄 Evento Atualizado',
-                text: change.type === 'added' 
-                  ? `Não perca: "${data.title}" foi agendado.` 
-                  : `Atenção: o evento "${data.title}" foi atualizado.`,
-                time: 'Agora mesmo',
-                unread: true,
-                type: 'eventos'
-              },
-              ...prev
-            ]);
+      if (!isInitialRun) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
+            const data = change.doc.data() as ChurchEvent;
+            addAppNotification('event', '📅 Novo Evento!', `Não perca: "${data.title}" foi agendado.`, 'eventos');
           }
-        }
-      });
+        });
+      }
 
-      lastProcessedEventsRef.current = new Date().toISOString();
+      isInitialRun = false;
       setEvents(list);
     }, (error) => {
       console.warn("Firestore Events fetch failed:", error);
@@ -359,6 +336,7 @@ export default function App() {
   // Sync Studies
   useEffect(() => {
     if (!isAuthReady) return;
+    let isInitialRun = true;
     const unsubscribe = onSnapshot(collection(db, 'studies'), (snapshot) => {
       const list: ChurchStudy[] = [];
       snapshot.forEach((snapDoc) => {
@@ -368,29 +346,16 @@ export default function App() {
       });
 
       // Realtime study notifications
-      snapshot.docChanges().forEach((change) => {
-        if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
-          const data = change.doc.data() as ChurchStudy;
-          if (data.updatedAt && data.updatedAt > lastProcessedStudiesRef.current) {
-            triggerPhoneNotification('study' as any, change.type === 'added' ? '📖 Novo Estudo Publicado!' : '🔄 Estudo Atualizado', data.title);
-            setNotifications(prev => [
-              {
-                id: `nt-std-rt-${Date.now()}`,
-                title: change.type === 'added' ? '📖 Novo Estudo' : '🔄 Estudo Atualizado',
-                text: change.type === 'added'
-                  ? `Confira o novo estudo publicado: "${data.title}" por ${data.authorName || 'Pastoral'}`
-                  : `O estudo "${data.title}" foi revisado e updated.`,
-                time: 'Agora mesmo',
-                unread: true,
-                type: 'estudos'
-              },
-              ...prev
-            ]);
+      if (!isInitialRun) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
+            const data = change.doc.data() as ChurchStudy;
+            addAppNotification('study' as any, '📖 Novo Estudo Publicado!', `Confira o novo estudo: "${data.title}"`, 'estudos');
           }
-        }
-      });
+        });
+      }
 
-      lastProcessedStudiesRef.current = new Date().toISOString();
+      isInitialRun = false;
       setStudies(list);
     }, (error) => {
       console.warn("Firestore Studies fetch failed:", error);
@@ -418,6 +383,7 @@ export default function App() {
   // Sync Transmissions
   useEffect(() => {
     if (!isAuthReady) return;
+    let isInitialRun = true;
     const unsubscribe = onSnapshot(collection(db, 'transmissions'), (snapshot) => {
       const list: any[] = [];
       snapshot.forEach((snapDoc) => {
@@ -425,29 +391,16 @@ export default function App() {
       });
 
       // Realtime transmission/live notifications
-      snapshot.docChanges().forEach((change) => {
-        if ((change.type === 'added' || change.type === 'modified') && change.doc.id !== 'system_seeded_state') {
-          const data = change.doc.data();
-          if (data.updatedAt && data.updatedAt > lastProcessedTransmissionsRef.current) {
-             triggerPhoneNotification('live', change.type === 'added' ? '📡 Nova Transmissão!' : '🔄 Transmissão Atualizada', data.title);
-             setNotifications(prev => [
-               {
-                 id: `nt-trans-rt-${Date.now()}`,
-                 title: change.type === 'added' ? '📡 Nova Transmissão' : '🔄 Transmissão Atualizada',
-                 text: change.type === 'added'
-                   ? `A igreja iniciou ou agendou uma nova transmissão: "${data.title}"`
-                   : `A transmissão "${data.title}" foi atualizada.`,
-                 time: 'Agora mesmo',
-                 unread: true,
-                 type: 'aovivo'
-               },
-               ...prev
-             ]);
+      if (!isInitialRun) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && change.doc.id !== 'system_seeded_state') {
+            const data = change.doc.data();
+            addAppNotification('live', '📡 Nova Transmissão Agendada!', `Título: "${data.title}"`, 'aovivo');
           }
-        }
-      });
+        });
+      }
 
-      lastProcessedTransmissionsRef.current = new Date().toISOString();
+      isInitialRun = false;
       setTransmissions(list);
     }, (error) => {
       console.warn("Firestore Transmissions fetch failed:", error);
@@ -743,7 +696,21 @@ export default function App() {
   }, [dbUsers, user]);
 
   const [showNotificationsList, setShowNotificationsList] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    const saved = localStorage.getItem('church_app_notifications');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  // Save notifications to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('church_app_notifications', JSON.stringify(notifications));
+  }, [notifications]);
 
   // Custom alert feedback Toast message controller
   const [toast, setToast] = useState<string | null>(null);
@@ -785,7 +752,12 @@ export default function App() {
           title,
           subtitle
         });
-      }, 50);
+      }, 100);
+
+      // Auto-dismiss notification after 8 seconds
+      setTimeout(() => {
+        setPhoneNotification(prev => prev && prev.title === title ? null : prev);
+      }, 8000);
 
       // System Native Notification via Service Worker
       if ('serviceWorker' in navigator && Notification.permission === 'granted') {
@@ -794,7 +766,8 @@ export default function App() {
             body: subtitle,
             icon: '/icon-512.png',
             badge: '/icon-512.png',
-            tag: type
+            tag: type,
+            data: window.location.origin
           });
         });
       }
@@ -1463,11 +1436,12 @@ export default function App() {
         onNavigate={handleNavigate} 
         deferredPrompt={deferredPrompt}
         onInstall={handleInstallClick}
+        onToggleNotifications={() => setShowNotificationsList(!showNotificationsList)}
+        unreadCount={notifications.filter(n => n.unread).length}
       />
 
       {/* Main Single-Screen Render Router Canvas */}
       <main className="pt-24 px-6 max-w-lg mx-auto w-full flex-grow">
-        <NotificationsPopup user={user} isAuthReady={isAuthReady} onRedirect={handleRedirect} />
         
         {/* Render active section tab component */}
         {currentTab === 'home' && (
@@ -1646,6 +1620,96 @@ export default function App() {
         )}
 
       </main>
+
+      {/* Floating Notifications List Panel Overlay */}
+      {showNotificationsList && (
+        <div className="fixed top-20 right-6 w-[340px] max-w-[90vw] bg-white rounded-3xl shadow-2xl border border-slate-200 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 ring-4 ring-black/5">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-[#191c1d] text-base">Notificações</h3>
+              {notifications.filter(n => n.unread).length > 0 && (
+                <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                  {notifications.filter(n => n.unread).length} novas
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={markAllNotificationsRead}
+                className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline cursor-pointer"
+              >
+                Limpar
+              </button>
+              <button 
+                onClick={() => setShowNotificationsList(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[70vh] overflow-y-auto overflow-x-hidden no-scrollbar bg-slate-50/30">
+            {notifications.length === 0 ? (
+              <div className="py-12 px-6 text-center space-y-3">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Check className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-sm font-bold text-slate-700">Tudo em dia!</p>
+                <p className="text-xs text-slate-400 font-semibold px-4">Você ainda não recebeu nenhuma notificação.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {notifications.map((n) => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => {
+                      const target = getTargetTabForNotification(n);
+                      handleNavigate(target);
+                      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item));
+                      setShowNotificationsList(false);
+                    }}
+                    className={`p-4 flex items-start gap-4 transition-all hover:bg-indigo-50/50 cursor-pointer relative group ${n.unread ? 'bg-indigo-50/20' : ''}`}
+                  >
+                    {n.unread && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r-full" />
+                    )}
+                    
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
+                      n.type === 'oracao' ? 'bg-rose-100 text-rose-600' :
+                      n.type === 'aovivo' ? 'bg-red-100 text-red-600' :
+                      n.type === 'eventos' ? 'bg-amber-100 text-amber-600' :
+                      n.type === 'estudos' ? 'bg-indigo-100 text-indigo-600' :
+                      'bg-[#002D5E] text-white'
+                    }`}>
+                      <Church className="w-5 h-5" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className={`text-xs font-bold leading-tight ${n.unread ? 'text-[#191c1d]' : 'text-slate-600'}`}>{n.title}</h4>
+                        <span className="text-[9px] text-slate-400 font-extrabold whitespace-nowrap uppercase tracking-tighter">{n.time}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-semibold leading-relaxed line-clamp-2 pr-2">{n.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {notifications.length > 0 && (
+            <div className="p-3 bg-white border-t border-slate-100 text-center">
+              <button 
+                onClick={clearAllNotifications}
+                className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline cursor-pointer"
+              >
+                Apagar Histórico
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Styled smartphone push notifications keyframes */}
       <style>{`

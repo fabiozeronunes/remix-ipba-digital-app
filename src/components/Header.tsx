@@ -6,9 +6,18 @@ interface HeaderProps {
   onNavigate: (tab: string) => void;
   deferredPrompt: any;
   onInstall: () => void;
+  onToggleNotifications: () => void;
+  unreadCount: number;
 }
 
-export default function Header({ user, onNavigate, deferredPrompt, onInstall }: HeaderProps) {
+export default function Header({ 
+  user, 
+  onNavigate, 
+  deferredPrompt, 
+  onInstall, 
+  onToggleNotifications, 
+  unreadCount 
+}: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 w-full z-50 backdrop-blur-lg flex justify-between items-center px-6 py-4 shadow-md bg-[#002D5E] text-white">
       {/* IPB Digital Logo and Wordmark */}
@@ -24,6 +33,21 @@ export default function Header({ user, onNavigate, deferredPrompt, onInstall }: 
       </div>
 
        <div className="flex items-center gap-2 md:gap-4">
+        {/* Notification Bell */}
+        {user && (
+          <button 
+            onClick={onToggleNotifications}
+            className="p-2.5 rounded-full hover:bg-white/10 transition-colors relative active:scale-90 cursor-pointer"
+            aria-label="Notificações"
+          >
+            <Bell className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-4 h-4 bg-red-500 border-2 border-[#002D5E] rounded-full flex items-center justify-center text-[10px] font-bold animate-bounce">
+                {unreadCount > 9 ? '+' : unreadCount}
+              </span>
+            )}
+          </button>
+        )}
         {/* User Session Portal */}
         {user ? (
           <button 
