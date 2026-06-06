@@ -8,7 +8,8 @@ import {
   ChevronRight,
   ShieldCheck,
   X,
-  Church
+  Church,
+  Bell
 } from 'lucide-react';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
@@ -121,26 +122,37 @@ export default function App() {
   const [radioPrograms, setRadioPrograms] = useState<RadioProgram[]>([]);
   const [transmissions, setTransmissions] = useState<any[]>([]);
   const [cargos, setCargos] = useState<string[]>([]);
+  const [showSoftNotifPrompt, setShowSoftNotifPrompt] = useState(false);
 
   useEffect(() => {
-    // Solicitar permissão para notificações nativas e verificar suporte PUSH
-    const requestNotifPermission = async () => {
-      if ('serviceWorker' in navigator && 'Notification' in window) {
-        try {
-          if (Notification.permission === 'default') {
-            const permission = await Notification.requestPermission();
-            console.log('Resultado da permissão de notificação:', permission);
-          }
-        } catch (err) {
-          console.warn('Erro ao solicitar permissão de notificação:', err);
-        }
+    // Verificar se já temos permissão ou se negamos. Se default, mostramos o prompt suave.
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        // Delay de 3 segundos para não assustar o usuário e garantir que o app carregou
+        const timer = setTimeout(() => {
+          setShowSoftNotifPrompt(true);
+        }, 3000);
+        return () => clearTimeout(timer);
       }
-    };
-
-    // Pequeno delay para evitar bloqueios de carregamento agressivo de alguns navegadores
-    const timer = setTimeout(requestNotifPermission, 1500);
-    return () => clearTimeout(timer);
+    }
   }, []);
+
+  const handleNativePermissionRequest = async () => {
+    if (!('Notification' in window)) return;
+    
+    try {
+      const permission = await Notification.requestPermission();
+      console.log('Permission result:', permission);
+      setShowSoftNotifPrompt(false);
+      
+      if (permission === 'granted') {
+        setToast("✅ Notificações ativadas com sucesso!");
+      }
+    } catch (err) {
+      console.error('Erro ao pedir permissão:', err);
+      setShowSoftNotifPrompt(false);
+    }
+  };
 
   const [isAuthReady, setIsAuthReady] = useState(false);
   const userRef = useRef<User | null>(user);
@@ -1448,7 +1460,44 @@ export default function App() {
       />
 
       {/* Main Single-Screen Render Router Canvas */}
-      <main className="pt-24 px-6 max-w-lg mx-auto w-full flex-grow">
+      <main className="pt-24 px-6 max-w-lg mx-auto w-full flex-grow relative">
+        
+        {/* Soft Notification Prompt Banner */}
+        {showSoftNotifPrompt && (
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 p-4 z-[55] animate-in fade-in slide-in-from-top-8 duration-500 ring-4 ring-indigo-500/10">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Bell className="w-6 h-6 text-indigo-600 animate-pulse" />
+              </div>
+              <div className="flex-grow space-y-1">
+                <h3 className="text-sm font-extrabold text-[#191c1d]">Ativar Notificações?</h3>
+                <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                  Receba avisos de cultos ao vivo, novos pedidos de oração e eventos da IPB Digital diretamente no seu celular.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={handleNativePermissionRequest}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 cursor-pointer"
+                  >
+                    Sim, Ativar
+                  </button>
+                  <button 
+                    onClick={() => setShowSoftNotifPrompt(false)}
+                    className="text-slate-400 px-2 py-2 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
+                  >
+                    Agora não
+                  </button>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSoftNotifPrompt(false)}
+                className="text-slate-300 hover:text-slate-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Render active section tab component */}
         {currentTab === 'home' && (
