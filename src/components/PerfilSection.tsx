@@ -1103,26 +1103,6 @@ export default function PerfilSection({
             </div>
             <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
           </div>
-
-          <div className="p-5 bg-emerald-50/50 border-t border-emerald-100 space-y-3">
-            <div className="flex items-center gap-2.5">
-              <Smartphone className="w-5 h-5 text-emerald-600" />
-              <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-emerald-900">Aplicativo na Tela Inicial</h4>
-            </div>
-            <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
-              Para acessar nosso portal rapidamente sem precisar digitar o endereço:
-            </p>
-            <div className="space-y-2 text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-              <div className="flex items-start gap-2">
-                <span className="w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center shrink-0">1</span>
-                <span>No Android (Chrome): Toque nos 3 pontos e em "Adicionar à tela inicial"</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center shrink-0">2</span>
-                <span>No iOS (Safari): Toque no ícone de "Compartilhar" e em "Tela de Início"</span>
-              </div>
-            </div>
-          </div>
         </nav>
       </section>
 
