@@ -88,6 +88,7 @@ export default function App() {
     return 'login';
   });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showSoftInstallPrompt, setShowSoftInstallPrompt] = useState(false);
   const [showInstallGuidance, setShowInstallGuidance] = useState(false);
   const [installPlatform, setInstallPlatform] = useState<'android' | 'ios'>('android');
 
@@ -95,16 +96,27 @@ export default function App() {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      
+      const hasDismissedInstall = localStorage.getItem('church_install_prompt_dismissed');
+      if (!hasDismissedInstall) {
+        setTimeout(() => setShowSoftInstallPrompt(true), 5000);
+      }
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
     if (isIOS) {
       setInstallPlatform('ios');
+      const hasDismissedInstall = localStorage.getItem('church_install_prompt_dismissed');
+      if (isIOS && !isStandalone && !hasDismissedInstall) {
+        setTimeout(() => setShowSoftInstallPrompt(true), 6000);
+      }
     }
   }, []);
 
@@ -125,15 +137,29 @@ export default function App() {
   const [showSoftNotifPrompt, setShowSoftNotifPrompt] = useState(false);
 
   useEffect(() => {
-    // Verificar se já temos permissão ou se negamos. Se default, mostramos o prompt suave.
+    // Detecção robusta de PWA / Modo Standalone
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone || document.referrer.includes('android-app://');
+    
+    // Debug logs para o console
+    console.log("[Notificações] Modo Standalone detectado:", isStandalone);
+    console.log("[Notificações] Estado atual da permissão:", 'Notification' in window ? Notification.permission : 'Não suportado');
+    
+    const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
+    
+    // Se estiver no modo standalone, damos prioridade máxima ao banner se a permissão for default
     if ('Notification' in window) {
-      const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
-      if (Notification.permission === 'default' && !hasDismissed) {
-        // Delay de 3.5 segundos para garantir carregamento completo
-        const timer = setTimeout(() => {
-          setShowSoftNotifPrompt(true);
-        }, 3500);
-        return () => clearTimeout(timer);
+      if (Notification.permission === 'default') {
+        // No modo app instalado, se ele nunca aceitou, sempre mostramos o banner (ignoramos descarte do navegador)
+        const shouldShow = isStandalone ? true : !hasDismissed;
+        
+        if (shouldShow) {
+          console.log("[Notificações] Agendando exibição do banner estratégico...");
+          const timer = setTimeout(() => {
+            console.log("[Notificações] Mostrando banner agora!");
+            setShowSoftNotifPrompt(true);
+          }, 3000);
+          return () => clearTimeout(timer);
+        }
       }
     }
   }, []);
@@ -1468,28 +1494,74 @@ export default function App() {
         unreadCount={notifications.filter(n => n.unread).length}
       />
 
-      {/* Soft Notification Prompt Banner */}
-      {showSoftNotifPrompt && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-2xl shadow-2xl border border-indigo-100 p-5 z-[100] animate-banner-slide-in ring-4 ring-indigo-500/10">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
-              <Bell className="w-6 h-6 text-indigo-600 animate-bounce-slow" />
+      {/* Soft PWA Installation Prompt Banner */}
+      {showSoftInstallPrompt && !showSoftNotifPrompt && (
+        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[94%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
+          <div className="flex items-start gap-5">
+            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-emerald-100">
+              <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
             </div>
-            <div className="flex-grow space-y-1">
-              <h3 className="text-sm font-extrabold text-[#191c1d]">Ativar Notificações?</h3>
+            <div className="flex-grow space-y-1.5">
+              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Instalar App IPBA?</h3>
               <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Acompanhe cultos ao vivo, novos pedidos de oração e eventos importantes em tempo real no seu celular.
+                Adicione o app à sua tela inicial para acesso rápido, transmissões estáveis e notificações em tempo real.
               </p>
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-3">
+                <button 
+                  onClick={() => {
+                    setShowSoftInstallPrompt(false);
+                    handleInstallClick();
+                  }}
+                  className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 cursor-pointer active:scale-95"
+                >
+                  Instalar Agora
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowSoftInstallPrompt(false);
+                    localStorage.setItem('church_install_prompt_dismissed', 'true');
+                  }}
+                  className="text-slate-400 px-4 py-3 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
+                >
+                  Ignorar
+                </button>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                setShowSoftInstallPrompt(false);
+                localStorage.setItem('church_install_prompt_dismissed', 'true');
+              }}
+              className="text-slate-300 hover:text-slate-500 transition-colors p-1 -mt-1"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
+      {showSoftNotifPrompt && (
+        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[94%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
+          <div className="flex items-start gap-5">
+            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
+              <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
+            </div>
+            <div className="flex-grow space-y-1.5">
+              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Ativar Notificações no App?</h3>
+              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                Agora que você instalou a IPB Digital, ative os avisos para não perder cultos ao vivo e intercessões da igreja.
+              </p>
+              <div className="flex gap-3 pt-3">
                 <button 
                   onClick={handleNativePermissionRequest}
-                  className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer active:scale-95"
+                  className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer active:scale-95"
                 >
                   Sim, Ativar
                 </button>
                 <button 
                   onClick={handleDismissSoftPrompt}
-                  className="text-slate-400 px-2 py-2.5 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
+                  className="text-slate-400 px-4 py-3 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
                 >
                   Agora não
                 </button>
@@ -1497,9 +1569,9 @@ export default function App() {
             </div>
             <button 
               onClick={handleDismissSoftPrompt}
-              className="text-slate-300 hover:text-slate-500 transition-colors p-1"
+              className="text-slate-300 hover:text-slate-500 transition-colors p-1 -mt-1"
             >
-              <X className="w-4 h-4" />
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -1780,12 +1852,24 @@ export default function App() {
       <style>{`
         @keyframes bannerSlideIn {
           from {
-            transform: translate(-50%, -100%) scale(0.95);
             opacity: 0;
+            transform: translate(-50%, 40px);
           }
           to {
-            transform: translate(-50%, 0) scale(1);
             opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+        @media (min-width: 768px) {
+          @keyframes bannerSlideIn {
+            from {
+              opacity: 0;
+              transform: translate(-50%, -40px);
+            }
+            to {
+              opacity: 1;
+              transform: translate(-50%, 0);
+            }
           }
         }
         .animate-banner-slide-in {
