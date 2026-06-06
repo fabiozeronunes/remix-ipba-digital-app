@@ -82,10 +82,12 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>(() => {
     const saved = localStorage.getItem('church_active_tab');
     const currentUserSession = localStorage.getItem('church_current_user');
-    if (currentUserSession) {
-      return saved && saved !== 'login' ? saved : 'home';
-    }
-    return 'login';
+    
+    // Se temos uma aba salva, respeitamos ela integralmente para evitar redirecionamentos indesejados no refresh
+    if (saved) return saved;
+    
+    // Se houver sessão mas nenhuma aba salva (raro), vai para home. Caso contrário, login.
+    return currentUserSession ? 'home' : 'login';
   });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showSoftInstallPrompt, setShowSoftInstallPrompt] = useState(false);
@@ -142,27 +144,19 @@ export default function App() {
     
     // Debug logs para o console
     console.log("[Notificações] Modo Standalone detectado:", isStandalone);
-    console.log("[Notificações] Estado atual da permissão:", 'Notification' in window ? Notification.permission : 'Não suportado');
     
     const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
     
-    // Se estiver no modo standalone, damos prioridade máxima ao banner se a permissão for default
-    if ('Notification' in window) {
-      if (Notification.permission === 'default') {
-        // No modo app instalado, se ele nunca aceitou, sempre mostramos o banner (ignoramos descarte do navegador)
-        const shouldShow = isStandalone ? true : !hasDismissed;
-        
-        if (shouldShow) {
-          console.log("[Notificações] Agendando exibição do banner estratégico...");
-          const timer = setTimeout(() => {
-            console.log("[Notificações] Mostrando banner agora!");
-            setShowSoftNotifPrompt(true);
-          }, 3000);
-          return () => clearTimeout(timer);
-        }
+    // Se estiver na HOME e a permissão for default, mostramos o banner estrategicamente
+    if ('Notification' in window && Notification.permission === 'default' && currentTab === 'home') {
+      if (!hasDismissed || isStandalone) {
+        const timer = setTimeout(() => {
+          setShowSoftNotifPrompt(true);
+        }, 4000);
+        return () => clearTimeout(timer);
       }
     }
-  }, []);
+  }, [currentTab]);
 
   const handleNativePermissionRequest = async () => {
     if (!('Notification' in window)) return;
@@ -1045,8 +1039,8 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('church_current_user');
-    setCurrentTab('home');
-    localStorage.setItem('church_active_tab', 'home');
+    setCurrentTab('login');
+    localStorage.setItem('church_active_tab', 'login');
     showAlert("Sua sessão foi encerrada com sucesso.");
   };
 
@@ -1496,7 +1490,7 @@ export default function App() {
 
       {/* Soft PWA Installation Prompt Banner */}
       {showSoftInstallPrompt && !showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-0 right-0 mx-auto w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
+        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(16,185,129,0.35)] md:shadow-[0_20px_50px_rgba(16,185,129,0.3)] border-2 border-emerald-100 p-6 z-[9998] animate-banner-slide-in ring-8 ring-emerald-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-emerald-100">
               <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
@@ -1542,7 +1536,7 @@ export default function App() {
 
       {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
       {showSoftNotifPrompt && (
-        <div className="fixed bottom-24 md:top-28 left-0 right-0 mx-auto w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
+        <div className="fixed bottom-24 md:top-28 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white rounded-3xl shadow-[0_-20px_60px_rgba(79,70,229,0.35)] md:shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
           <div className="flex items-start gap-5">
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
               <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
@@ -1853,22 +1847,22 @@ export default function App() {
         @keyframes bannerSlideIn {
           from {
             opacity: 0;
-            transform: translateY(40px);
+            transform: translate(-50%, 40px);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translate(-50%, 0);
           }
         }
         @media (min-width: 768px) {
           @keyframes bannerSlideIn {
             from {
               opacity: 0;
-              transform: translateY(-40px);
+              transform: translate(-50%, -40px);
             }
             to {
               opacity: 1;
-              transform: translateY(0);
+              transform: translate(-50%, 0);
             }
           }
         }
