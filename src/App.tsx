@@ -582,12 +582,16 @@ export default function App() {
     if (!isAuthReady) return;
     console.log("[Sync] Iniciando ouvinte global: Notifications");
 
+    // Let's create a ref of current tab to access the absolute up-to-date tab in onSnapshot
+    const currentTabRef = { current: currentTab };
+
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: AppNotification[] = [];
       const readIds = getReadNotificationIds();
       const deletedIds = getDeletedNotificationIds();
+      const newlyReadIds: string[] = [];
 
       const newItemsToTrigger: AppNotification[] = [];
 
@@ -607,28 +611,38 @@ export default function App() {
         if (typeStr === 'live') typeStr = 'home';
         if (typeStr === 'cell') typeStr = 'celulas';
 
+        let isUnread = !readIds.includes(id);
+        // If the notifications belongs to the currently active tab, silence/mark it read immediately
+        if (isUnread && typeStr === currentTabRef.current) {
+          isUnread = false;
+          newlyReadIds.push(id);
+        }
+
         const notifItem: AppNotification = {
           id: id,
           title: data.title || '',
           text: data.message || data.text || '',
           time: data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : 'Agora mesmo',
-          unread: !readIds.includes(id),
+          unread: isUnread,
           type: typeStr
         };
 
         list.push(notifItem);
 
         // Track new notifications for trigger
+        // Completely bypass clock drift/timezone sync issues:
+        // Any incoming ID we haven't seen yet during our active session triggers a banner instantly!
         if (!notificationsInitialSync.current && !seenNotifIds.current.has(id)) {
-          // If the notification was created very recently or during our active session
-          const createdTime = data.createdAt ? new Date(data.createdAt).getTime() : Date.now();
-          if (createdTime > sessionStartTime.current - 10000) {
-            newItemsToTrigger.push(notifItem);
-          }
+          newItemsToTrigger.push(notifItem);
         }
         
         seenNotifIds.current.add(id);
       });
+
+      // Save any newly read IDs (since we are on that tab)
+      if (newlyReadIds.length > 0) {
+        markNotificationsReadLocal(newlyReadIds);
+      }
 
       // Populate seen ids initially if search is done
       if (notificationsInitialSync.current) {
@@ -640,7 +654,7 @@ export default function App() {
 
       setNotifications(list);
 
-      // Trigger alerts/chimes for truly new notifications received in active session
+      // Trigger alerts/chimes for truly new notifications received in real-time
       newItemsToTrigger.forEach(item => {
         // Map types correctly
         let triggerType: any = item.type;
@@ -658,7 +672,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady]);
+  }, [isAuthReady, currentTab]);
 
   // Sync Users from Firestore
   useEffect(() => {
@@ -1131,6 +1145,20 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     // Auto collapse notification list when navigating
     setShowNotificationsList(false);
+
+    // Immediately mark notifications of this tab as read as they click on it
+    const idsToMark: string[] = [];
+    const nextNotifs = notifications.map(n => {
+      if (n.unread && n.type === tab) {
+        idsToMark.push(n.id);
+        return { ...n, unread: false };
+      }
+      return n;
+    });
+    if (idsToMark.length > 0) {
+      markNotificationsReadLocal(idsToMark);
+      setNotifications(nextNotifs);
+    }
   };
 
   const handleLoginSuccess = (authenticatedUser: User) => {
@@ -1688,7 +1716,7 @@ export default function App() {
         setNotifications(nextNotifs);
       }
     }
-  }, [currentTab, notifications.length]);
+  }, [currentTab, notifications]);
 
   const tabNotifications: Record<string, number> = {};
   notifications.forEach(n => {
