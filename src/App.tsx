@@ -924,6 +924,7 @@ export default function App() {
     const isEnabled = preferences[prefKeyMap[type]];
     
     if (isEnabled) {
+      console.log(`[Push] Notification trigger attempt: ${type}`, { title, subtitle });
       // Local App Toast/Popup
       setPhoneNotification(null);
       setTimeout(() => {
@@ -933,19 +934,27 @@ export default function App() {
           title,
           subtitle
         });
+      console.log(`[Push] Local UI state updated for notification: ${type}`);
       }, 100);
 
       // System Native Notification via Service Worker
+      console.log(`[Push] Checking system notification permission...`, {
+        swExists: 'serviceWorker' in navigator,
+        permission: Notification.permission
+      });
       if ('serviceWorker' in navigator && Notification.permission === 'granted') {
         navigator.serviceWorker.ready.then(registration => {
+          console.log(`[Push] Sending system notification...`);
           registration.showNotification(title, {
             body: subtitle,
             icon: '/icon-512.png',
             badge: '/icon-512.png',
-            tag: type,
+            tag: `notif-${Date.now()}`,
             data: window.location.origin
           });
         });
+      } else {
+        console.log(`[Push] System notification suppressed: permission not granted or SW not ready.`);
       }
     }
   };

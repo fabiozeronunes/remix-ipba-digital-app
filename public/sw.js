@@ -27,6 +27,7 @@ self.addEventListener('push', (event) => {
     icon: '/icon-512.png',
     badge: '/icon-512.png',
     data: data.url || '/', // URL para abrir ao clicar
+    tag: `push-${Date.now()}`,
     vibrate: [100, 50, 100],
     requireInteraction: true,
     actions: [
