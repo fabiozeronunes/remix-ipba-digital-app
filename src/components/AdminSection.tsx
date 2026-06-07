@@ -118,8 +118,15 @@ export default function AdminSection({
   const [newOptionInput, setNewOptionInput] = useState('');
   const [supportTicketsList, setSupportTicketsList] = useState<SupportTicket[]>([]);
 
+  const isActualAdmin = !!(userCategory && (
+    userCategory.includes('Pastor') ||
+    userCategory.includes('Presbítero') ||
+    userCategory.includes('Coordenador') ||
+    userCategory.includes('Admin')
+  ));
+
   useEffect(() => {
-    if (!isAuthReady) return;
+    if (!isAuthReady || !isActualAdmin) return;
     const unsubscribe = onSnapshot(collection(db, 'supportOptions'), (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupportOption[];
       setSupportOptionsList(fetched);
@@ -128,10 +135,10 @@ export default function AdminSection({
       handleFirestoreError(error, OperationType.LIST, 'supportOptions');
     });
     return () => unsubscribe();
-  }, [isAuthReady]);
+  }, [isAuthReady, isActualAdmin]);
 
   useEffect(() => {
-    if (!isAuthReady) return;
+    if (!isAuthReady || !isActualAdmin) return;
     const unsubscribe = onSnapshot(collection(db, 'supportTickets'), (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupportTicket[];
       fetched.sort((a,b) => b.createdAt.localeCompare(a.createdAt));
@@ -141,7 +148,7 @@ export default function AdminSection({
       handleFirestoreError(error, OperationType.LIST, 'supportTickets');
     });
     return () => unsubscribe();
-  }, [isAuthReady]);
+  }, [isAuthReady, isActualAdmin]);
 
 
   useEffect(() => {

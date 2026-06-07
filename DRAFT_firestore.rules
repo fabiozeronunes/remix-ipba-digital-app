@@ -1,47 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is signed in
+    
+    // Global catch-all default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable global helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper to check for email verification
-    function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
-    // Helper to identify the user's document ID from their email
-    // This is a simplified version of the logic in getUserDocId
-    // Since we can't easily perform the .replace(/[^a-z0-9_\-]/g, '_') in rules perfectly,
-    // we assume the document ID was generated via the same logic.
-    // For our comparison purposes, we check the 'email' field inside the doc if needed.
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.token.email.lower().replace('[^a-z0-9_\\-]', '_'))).data;
-    }
-
-    function isAdmin() {
-      let category = getUserData().category;
-      return category.contains('Pastor') || category.contains('Presbítero') || category.contains('Admin') || category.contains('Coordenador');
+    // Checking email securely
+    function hasEmail() {
+      return isSignedIn() && "email" in request.auth.token && request.auth.token.email != null;
     }
 
     function isOwner(email) {
-      return isSignedIn() && request.auth.token.email.lower() == email.lower();
+      return hasEmail() && email != null && request.auth.token.email.lower() == email.lower();
     }
 
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    function isAdmin() {
+      return hasEmail() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
+             (
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Pastor.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Presb.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Admin.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Coordenador.*')
+             );
     }
 
     // USERS
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.token.email.lower() == request.resource.data.email.lower();
-      allow update: if (isSignedIn() && (request.auth.token.email.lower() == resource.data.email.lower() || isAdmin())) && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'category', 'avatarUrl', 'birthDate', 'address', 'ministry', 'password', 'status', 'updatedAt'])
-      );
+      allow create: if isSignedIn() && hasEmail() && request.auth.token.email.lower() == request.resource.data.email.lower();
+      allow update: if isSignedIn() && (isOwner(resource.data.email) || isAdmin());
       allow delete: if isAdmin();
     }
 
@@ -78,11 +73,13 @@ service cloud.firestore {
       allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedUsers', 'updatedAt']);
     }
 
-    // STUDIES & RADIO
+    // STUDIES
     match /studies/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // RADIO PROGRAMS
     match /radioPrograms/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -93,17 +90,21 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // TRANSMISSION CHATS (for Live streams)
     match /transmissionChats/{id} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
-    // SUPPORT
+    // SUPPORT OPTIONS (dropdown values configured by admins, read by everyone signed in)
     match /supportOptions/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // SUPPORT TICKETS (private to owner, read/write for admins)
     match /supportTickets/{id} {
       allow read: if isSignedIn() && (isOwner(resource.data.email) || isAdmin());
       allow create: if isSignedIn();

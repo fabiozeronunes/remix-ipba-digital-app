@@ -1,10 +1,125 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Restrict access to authenticated clients (including anonymous authenticated sessions)
-    // to align with the application's custom client-side authentication and session management.
+    
+    // Global catch-all default deny
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+
+    // Reusable global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasEmail() {
+      return isSignedIn() && "email" in request.auth.token && request.auth.token.email != null;
+    }
+
+    function isOwner(email) {
+      return hasEmail() && email != null && request.auth.token.email.lower() == email.lower();
+    }
+
+    function isAdmin() {
+      return hasEmail() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
+             (
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Pastor.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Presb.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Admin.*') || 
+               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Coordenador.*')
+             );
+    }
+
+    // USERS
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && hasEmail() && request.auth.token.email.lower() == request.resource.data.email.lower();
+      allow update: if isSignedIn() && (isOwner(resource.data.email) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // PRAYERS
+    match /prayers/{prayerId} {
+      allow read: if isSignedIn() && (resource.data.visibilidade == 'Público' || isAdmin() || isOwner(resource.data.authorEmail));
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        (isOwner(resource.data.authorEmail) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'visibilidade', 'updatedAt', 'userOred', 'count'])) ||
+        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aprovado', 'visibilidade', 'updatedAt'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'userOred']))
+      );
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(resource.data.authorEmail));
+    }
+
+    // CELLS
+    match /cells/{cellId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // CONTRIBUTIONS
+    match /contributions/{id} {
+      allow read: if isSignedIn() && (isOwner(resource.data.userEmail) || isAdmin());
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // EVENTS
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+      // Allow users to confirm participation
+      allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedUsers', 'updatedAt']);
+    }
+
+    // STUDIES
+    match /studies/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // RADIO PROGRAMS
+    match /radioPrograms/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // TRANSMISSIONS
+    match /transmissions/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // TRANSMISSION CHATS (for Live streams)
+    match /transmissionChats/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // SUPPORT OPTIONS (dropdown values configured by admins, read by everyone signed in)
+    match /supportOptions/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // SUPPORT TICKETS (private to owner, read/write for admins)
+    match /supportTickets/{id} {
+      allow read: if isSignedIn() && (isOwner(resource.data.email) || isAdmin());
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // CUSTOM ROLES
+    match /customRoles/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

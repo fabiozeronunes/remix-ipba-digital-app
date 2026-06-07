@@ -154,19 +154,24 @@ export default function App() {
 
   useEffect(() => {
     if (currentTab === 'home' && 'Notification' in window) {
-      console.log("[Push] Verificando permissão na Home:", Notification.permission);
-      
-      if (Notification.permission === 'default') {
-        const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+      try {
+        const permission = Notification.permission;
+        console.log("[Push] Verificando permissão na Home:", permission);
         
-        if (!hasDismissed || isStandalone) {
-          const timer = setTimeout(() => {
-            console.log("[Push] Disparando banner de notificação.");
-            setShowSoftNotifPrompt(true);
-          }, 1500);
-          return () => clearTimeout(timer);
+        if (permission === 'default') {
+          const hasDismissed = localStorage.getItem('church_soft_prompt_dismissed');
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+          
+          if (!hasDismissed || isStandalone) {
+            const timer = setTimeout(() => {
+              console.log("[Push] Disparando banner de notificação.");
+              setShowSoftNotifPrompt(true);
+            }, 1500);
+            return () => clearTimeout(timer);
+          }
         }
+      } catch (err) {
+        console.warn("[Push] Ignorando verificação de permissão Notification na Home (regra iframe):", err);
       }
     }
   }, [currentTab]);
@@ -582,16 +587,12 @@ export default function App() {
     if (!isAuthReady) return;
     console.log("[Sync] Iniciando ouvinte global: Notifications");
 
-    // Let's create a ref of current tab to access the absolute up-to-date tab in onSnapshot
-    const currentTabRef = { current: currentTab };
-
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: AppNotification[] = [];
       const readIds = getReadNotificationIds();
       const deletedIds = getDeletedNotificationIds();
-      const newlyReadIds: string[] = [];
 
       const newItemsToTrigger: AppNotification[] = [];
 
@@ -611,12 +612,7 @@ export default function App() {
         if (typeStr === 'live') typeStr = 'home';
         if (typeStr === 'cell') typeStr = 'celulas';
 
-        let isUnread = !readIds.includes(id);
-        // If the notifications belongs to the currently active tab, silence/mark it read immediately
-        if (isUnread && typeStr === currentTabRef.current) {
-          isUnread = false;
-          newlyReadIds.push(id);
-        }
+        const isUnread = !readIds.includes(id);
 
         const notifItem: AppNotification = {
           id: id,
@@ -638,11 +634,6 @@ export default function App() {
         
         seenNotifIds.current.add(id);
       });
-
-      // Save any newly read IDs (since we are on that tab)
-      if (newlyReadIds.length > 0) {
-        markNotificationsReadLocal(newlyReadIds);
-      }
 
       // Populate seen ids initially if search is done
       if (notificationsInitialSync.current) {
@@ -672,7 +663,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, currentTab]);
+  }, [isAuthReady]);
 
   // Sync Users from Firestore
   useEffect(() => {
@@ -951,25 +942,31 @@ export default function App() {
       console.log(`[Push] Local UI state updated for notification: ${type}`);
       }, 100);
 
-      // System Native Notification via Service Worker
-      console.log(`[Push] Checking system notification permission...`, {
-        swExists: 'serviceWorker' in navigator,
-        permission: Notification.permission
-      });
-      if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-        navigator.serviceWorker.ready.then(registration => {
-          console.log(`[Push] Sending system notification...`);
-          registration.showNotification(title, {
-            body: subtitle,
-            icon: '/icon-512.png',
-            badge: '/icon-512.png',
-            tag: `notif-${Date.now()}`,
-            data: window.location.origin
-          });
-        });
-      } else {
-        console.log(`[Push] System notification suppressed: permission not granted or SW not ready.`);
-      }
+       // System Native Notification via Service Worker
+       try {
+         if ('Notification' in window && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+           console.log(`[Push] Checking system notification permission...`, {
+             swExists: 'serviceWorker' in navigator,
+             permission: Notification.permission
+           });
+           navigator.serviceWorker.ready.then(registration => {
+             console.log(`[Push] Sending system notification...`);
+             registration.showNotification(title, {
+               body: subtitle,
+               icon: '/icon-512.png',
+               badge: '/icon-512.png',
+               tag: `notif-${Date.now()}`,
+               data: window.location.origin
+             });
+           }).catch(err => {
+             console.warn("[Push] SW ready error:", err);
+           });
+         } else {
+           console.log(`[Push] System notification suppressed: permission not granted or SW not ready.`);
+         }
+       } catch (err) {
+         console.warn("[Push] Native Notification API is blocked or errored (usually due to iframe constraints):", err);
+       }
     }
   };
 
@@ -1721,7 +1718,23 @@ export default function App() {
   const tabNotifications: Record<string, number> = {};
   notifications.forEach(n => {
     if (n.unread && n.type) {
-      tabNotifications[n.type] = (tabNotifications[n.type] || 0) + 1;
+      // Normalização robusta de tipos para corresponder exatamente às abas do menu (BottomNav)
+      let t = n.type.toLowerCase().trim();
+      if (t === 'event' || t === 'eventos') {
+        tabNotifications['eventos'] = (tabNotifications['eventos'] || 0) + 1;
+      } else if (t === 'prayer' || t === 'oracao') {
+        tabNotifications['oracao'] = (tabNotifications['oracao'] || 0) + 1;
+      } else if (t === 'study' || t === 'estudos') {
+        tabNotifications['estudos'] = (tabNotifications['estudos'] || 0) + 1;
+      } else if (t === 'cell' || t === 'celulas') {
+        tabNotifications['celulas'] = (tabNotifications['celulas'] || 0) + 1;
+      } else if (t === 'live' || t === 'aovivo') {
+        tabNotifications['aovivo'] = (tabNotifications['aovivo'] || 0) + 1;
+      } else if (t === 'home') {
+        tabNotifications['home'] = (tabNotifications['home'] || 0) + 1;
+      } else {
+        tabNotifications[t] = (tabNotifications[t] || 0) + 1;
+      }
     }
   });
 
