@@ -2111,7 +2111,18 @@ export default function AdminSection({
 
                           <button
                             type="button"
-                            onClick={() => setConfirmDelete({ id: ev.id, type: 'Evento', action: () => { onDeleteEvent(ev.id); onShowAlert(`Atividade "${ev.title}" removida.`); }, name: ev.title })}
+                            onClick={() => setConfirmDelete({ 
+                              id: ev.id, 
+                              type: 'Evento', 
+                              action: () => { 
+                                onDeleteEvent(ev.id); 
+                                try {
+                                  localStorage.removeItem('church_events');
+                                } catch (e) {}
+                                onShowAlert(`Atividade "${ev.title}" removida.`); 
+                              }, 
+                              name: ev.title 
+                            })}
                             className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
                             title="Excluir Atividade"
                           >

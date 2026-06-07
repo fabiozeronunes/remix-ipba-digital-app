@@ -1,13 +1,13 @@
 import { User, PrayerRequest, Cell, Contribution, ChurchEvent, BibleBook, ChurchStudy, RadioProgram } from './types';
 
 export const INITIAL_USER: User = {
-  name: 'Ricardo Lima',
+  name: 'Gabriel Silva',
   category: 'Membro Comungante',
   avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCAw9f0m9zhnseECjh851sbC_y6zLT72KxZLFVCXdRwDIWH1CC-47FIiUxUXqTuB95Spni3XDvS7u1c-glbKjtQ2aiQke9uLjXjx-PV80NSNENNsu_daFFwxaV4mbyOOaA9-ScMxItwTnqLmvpGA-Dd2xJWBIz5zJZspCQG6fQDPZ6kwo3E_MeyjhrwVP4B2tYvr6V3HBeiGN899eENqjHE6bBz6N_K14zK1XoogBk6NAT1WsQyx2fJXpIuYiRJK92dLfb6Zkrbf9c',
   planCount: 12,
   prayerCount: 5,
   eventCount: 3,
-  email: 'ricardo.lima@email.com',
+  email: 'gabriel.silva@email.com',
   phone: '(11) 98765-4321',
   birthDate: '1990-04-15',
   address: 'Alameda Lorena, 880 - Jardins, São Paulo',
@@ -50,7 +50,7 @@ export const INITIAL_PRAYER_REQUESTS: PrayerRequest[] = [
     count: 18,
     visibilidade: 'Público',
     userOred: true,
-    authorName: 'Ricardo Lima',
+    authorName: 'Gabriel Silva',
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCAw9f0m9zhnseECjh851sbC_y6zLT72KxZLFVCXdRwDIWH1CC-47FIiUxUXqTuB95Spni3XDvS7u1c-glbKjtQ2aiQke9uLjXjx-PV80NSNENNsu_daFFwxaV4mbyOOaA9-ScMxItwTnqLmvpGA-Dd2xJWBIz5zJZspCQG6fQDPZ6kwo3E_MeyjhrwVP4B2tYvr6V3HBeiGN899eENqjHE6bBz6N_K14zK1XoogBk6NAT1WsQyx2fJXpIuYiRJK92dLfb6Zkrbf9c',
     aprovado: true,
   },
@@ -109,7 +109,7 @@ export const INITIAL_CELLS: Cell[] = [
   {
     id: 'c-4',
     title: 'Célula Refúgio',
-    leaderName: 'Ricardo Lima',
+    leaderName: 'Gabriel Silva',
     leaderAvatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCAw9f0m9zhnseECjh851sbC_y6zLT72KxZLFVCXdRwDIWH1CC-47FIiUxUXqTuB95Spni3XDvS7u1c-glbKjtQ2aiQke9uLjXjx-PV80NSNENNsu_daFFwxaV4mbyOOaA9-ScMxItwTnqLmvpGA-Dd2xJWBIz5zJZspCQG6fQDPZ6kwo3E_MeyjhrwVP4B2tYvr6V3HBeiGN899eENqjHE6bBz6N_K14zK1XoogBk6NAT1WsQyx2fJXpIuYiRJK92dLfb6Zkrbf9c',
     schedule: 'Quintas, 20h00',
     address: 'Alameda Lorena, 880',

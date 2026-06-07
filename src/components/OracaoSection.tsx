@@ -31,7 +31,7 @@ export default function OracaoSection({
   onDeletePrayer,
   onEditPrayer,
   onShowAlert, 
-  currentUserName = 'Ricardo Lima',
+  currentUserName = 'Membro',
   currentUserCategory
 }: OracaoSectionProps) {
   const [title, setTitle] = useState('');

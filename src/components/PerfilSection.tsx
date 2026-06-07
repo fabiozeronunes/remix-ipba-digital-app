@@ -139,18 +139,17 @@ export default function PerfilSection({
     return 'Notification' in window ? Notification.permission : 'unsupported';
   });
 
-  const handleToggleBlockNotifications = async () => {
-    const nextState = !appNotificationsBlocked;
-    setAppNotificationsBlocked(nextState);
-    localStorage.setItem('church_app_notifications_blocked', nextState ? 'true' : 'false');
-    
-    if (nextState) {
-      onShowAlert("🚫 Notificações bloqueadas com sucesso no aplicativo.");
-    } else {
-      onShowAlert("🔔 Notificações desbloqueadas com sucesso no aplicativo!");
-    }
+  const handleBlockNotifications = async () => {
+    setAppNotificationsBlocked(true);
+    localStorage.setItem('church_app_notifications_blocked', 'true');
+    onShowAlert("🚫 Notificações bloqueadas com sucesso no aplicativo.");
+    await handleRequestSystemPermission();
+  };
 
-    // Always trigger the native system permission request, just like the home screen popup
+  const handleUnblockNotifications = async () => {
+    setAppNotificationsBlocked(false);
+    localStorage.setItem('church_app_notifications_blocked', 'false');
+    onShowAlert("🔔 Notificações desbloqueadas com sucesso no aplicativo!");
     await handleRequestSystemPermission();
   };
 
@@ -707,7 +706,7 @@ export default function PerfilSection({
           <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-200 shadow-lg relative">
             <img 
               className="w-full h-full object-cover group-hover:scale-105 transition-all" 
-              alt="Ricardo Lima Profile Picture" 
+              alt={`${user.name} Profile Picture`} 
               src={user.avatarUrl} 
             />
           </div>
@@ -1026,11 +1025,11 @@ export default function PerfilSection({
                       
                       <button 
                         type="button"
-                        onClick={handleToggleBlockNotifications}
+                        onClick={handleUnblockNotifications}
                         className="w-full py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2"
                       >
                         <Bell className="w-3.5 h-3.5" />
-                        <span>Desbloquear Notificações</span>
+                        <span>DESBLOQUEAR NOTIFICAÇÕES</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1069,7 +1068,7 @@ export default function PerfilSection({
                         {systemNotifPermission !== 'granted' && (
                           <button 
                             type="button"
-                            onClick={handleRequestSystemPermission}
+                            onClick={handleUnblockNotifications}
                             className="w-full py-2.5 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all cursor-pointer border border-indigo-100 active:scale-95 flex items-center justify-center gap-1.5"
                           >
                             <span>DESBLOQUEAR NOTIFICAÇÕES</span>
@@ -1079,7 +1078,7 @@ export default function PerfilSection({
                         
                         <button 
                           type="button"
-                          onClick={handleToggleBlockNotifications}
+                          onClick={handleBlockNotifications}
                           className="w-full py-2.5 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100/80 transition-all cursor-pointer border border-red-200 active:scale-95 flex items-center justify-center gap-1.5"
                         >
                           <X className="w-3.5 h-3.5" />

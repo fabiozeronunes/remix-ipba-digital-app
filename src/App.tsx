@@ -44,6 +44,8 @@ import {
   deleteDoc, 
   query, 
   where,
+  orderBy,
+  limit,
   writeBatch,
   getDocs
 } from 'firebase/firestore';
@@ -220,25 +222,92 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const addAppNotification = (type: string, title: string, subtitle: string, targetTab: any) => {
-    // 1. Trigger the Top Toast (Phone Push UI)
-    triggerPhoneNotification(type as any, title, subtitle);
-    
-    // 2. Add to history list
-    const newNotif: AppNotification = {
-      id: `nt-${type}-${Date.now()}`,
-      title: title,
-      text: subtitle,
-      time: 'Agora mesmo',
-      unread: true,
-      type: targetTab
-    };
-    
-    setNotifications(prev => [newNotif, ...prev]);
+  // Read/Unread mapping helper
+  const getReadNotificationIds = (): string[] => {
+    const saved = localStorage.getItem('church_read_notification_ids');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  const getDeletedNotificationIds = (): string[] => {
+    const saved = localStorage.getItem('church_deleted_notification_ids');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  const markNotificationReadLocal = (id: string) => {
+    const read = getReadNotificationIds();
+    if (!read.includes(id)) {
+      read.push(id);
+      localStorage.setItem('church_read_notification_ids', JSON.stringify(read));
+    }
+  };
+
+  const markNotificationsReadLocal = (ids: string[]) => {
+    const read = getReadNotificationIds();
+    let changed = false;
+    ids.forEach(id => {
+      if (!read.includes(id)) {
+        read.push(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem('church_read_notification_ids', JSON.stringify(read));
+    }
+  };
+
+  const deleteNotificationLocal = (id: string) => {
+    const deleted = getDeletedNotificationIds();
+    if (!deleted.includes(id)) {
+      deleted.push(id);
+      localStorage.setItem('church_deleted_notification_ids', JSON.stringify(deleted));
+    }
+  };
+
+  const deleteNotificationsLocal = (ids: string[]) => {
+    const deleted = getDeletedNotificationIds();
+    let changed = false;
+    ids.forEach(id => {
+      if (!deleted.includes(id)) {
+        deleted.push(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem('church_deleted_notification_ids', JSON.stringify(deleted));
+    }
+  };
+
+  const addAppNotification = async (type: string, title: string, subtitle: string, targetTab: any) => {
+    try {
+      const docId = `nt-${type}-${Date.now()}`;
+      await setDoc(doc(db, 'notifications', docId), {
+        title: title,
+        message: subtitle,
+        createdAt: new Date().toISOString(),
+        targetTab: targetTab,
+        type: type
+      });
+    } catch (err) {
+      console.warn("Failed to write notification to Firestore:", err);
+      triggerPhoneNotification(type as any, title, subtitle);
+    }
   };
 
   const prayersInitialSync = useRef(true);
   const eventsInitialSync = useRef(true);
+  const deletedEventIdsRef = useRef<Set<string>>(new Set());
 
   // Sync Prayers
   useEffect(() => {
@@ -254,7 +323,7 @@ export default function App() {
             const data = change.doc.data() as PrayerRequest;
             // Notifica apenas se for de outro usuário para evitar eco local
             if (userRef.current && data.authorName?.trim().toLowerCase() !== userRef.current.name?.trim().toLowerCase()) {
-               addAppNotification('prayer', 'Novo Pedido de Oração', `${data.authorName} postou: ${data.title}`, 'oracao');
+               triggerPhoneNotification('prayer', '🙏 Novo Pedido de Oração!', `${data.authorName} postou: ${data.title}`);
             }
           }
         });
@@ -355,18 +424,11 @@ export default function App() {
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const list: ChurchEvent[] = [];
 
-      // Detecção de novos eventos para notificações
-      if (!eventsInitialSync.current) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const data = change.doc.data() as ChurchEvent;
-            addAppNotification('event', 'Novo Evento na Igreja', `${data.title} em ${data.dateStr}`, 'eventos');
-          }
-        });
-      }
+      // Detecção de novos eventos para notificações gerenciada via central de notificações Firestore
+      eventsInitialSync.current = false;
 
       snapshot.forEach((snapDoc) => {
-        if (snapDoc.id !== 'system_seeded_state') {
+        if (snapDoc.id !== 'system_seeded_state' && !deletedEventIdsRef.current.has(snapDoc.id)) {
           const data = snapDoc.data() as ChurchEvent;
           list.push({ 
             id: snapDoc.id, 
@@ -511,6 +573,93 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
+  const sessionStartTime = useRef(Date.now());
+  const seenNotifIds = useRef<Set<string>>(new Set());
+  const notificationsInitialSync = useRef(true);
+
+  // Sync Notifications from Firestore
+  useEffect(() => {
+    if (!isAuthReady) return;
+    console.log("[Sync] Iniciando ouvinte global: Notifications");
+
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: AppNotification[] = [];
+      const readIds = getReadNotificationIds();
+      const deletedIds = getDeletedNotificationIds();
+
+      const newItemsToTrigger: AppNotification[] = [];
+
+      snapshot.forEach((snapDoc) => {
+        const data = snapDoc.data();
+        const id = snapDoc.id;
+        
+        // Skip deleted notifications
+        if (deletedIds.includes(id)) {
+          return;
+        }
+
+        let typeStr: any = data.type || data.targetTab || 'home';
+        if (typeStr === 'event') typeStr = 'eventos';
+        if (typeStr === 'prayer') typeStr = 'oracao';
+        if (typeStr === 'study') typeStr = 'estudos';
+        if (typeStr === 'live') typeStr = 'home';
+        if (typeStr === 'cell') typeStr = 'celulas';
+
+        const notifItem: AppNotification = {
+          id: id,
+          title: data.title || '',
+          text: data.message || data.text || '',
+          time: data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : 'Agora mesmo',
+          unread: !readIds.includes(id),
+          type: typeStr
+        };
+
+        list.push(notifItem);
+
+        // Track new notifications for trigger
+        if (!notificationsInitialSync.current && !seenNotifIds.current.has(id)) {
+          // If the notification was created very recently or during our active session
+          const createdTime = data.createdAt ? new Date(data.createdAt).getTime() : Date.now();
+          if (createdTime > sessionStartTime.current - 10000) {
+            newItemsToTrigger.push(notifItem);
+          }
+        }
+        
+        seenNotifIds.current.add(id);
+      });
+
+      // Populate seen ids initially if search is done
+      if (notificationsInitialSync.current) {
+        snapshot.forEach((snapDoc) => {
+          seenNotifIds.current.add(snapDoc.id);
+        });
+        notificationsInitialSync.current = false;
+      }
+
+      setNotifications(list);
+
+      // Trigger alerts/chimes for truly new notifications received in active session
+      newItemsToTrigger.forEach(item => {
+        // Map types correctly
+        let triggerType: any = item.type;
+        if (triggerType === 'eventos') triggerType = 'event';
+        if (triggerType === 'oracao') triggerType = 'prayer';
+        if (triggerType === 'celulas') triggerType = 'cell';
+        if (triggerType === 'estudos') triggerType = 'study';
+        if (triggerType === 'home') triggerType = 'live';
+
+        triggerPhoneNotification(triggerType, item.title, item.text);
+      });
+
+    }, (error) => {
+      console.warn("Firestore notifications query failed:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady]);
+
   // Sync Users from Firestore
   useEffect(() => {
     if (!isAuthReady) return;
@@ -560,7 +709,7 @@ export default function App() {
             const normalizedEmail = u.email.trim().toLowerCase();
             
             // Ativamente excluir Ricardo Lima se ele ainda existir nas snapshots para resolver de vez a persistência antiga
-            if (normalizedEmail === 'ricardo.lima@email.com') {
+            if (normalizedEmail === 'ricardo.lima@email.com' || (u.name && u.name.trim().toLowerCase() === 'ricardo lima')) {
               const docId = snapDoc.id;
               deleteDoc(doc(db, 'users', docId))
                 .then(() => console.log('Excluído Ricardo Lima de forma definitiva do banco.'))
@@ -1271,6 +1420,14 @@ export default function App() {
 
   const handleDeleteEventAndPublish = async (id: string) => {
     console.log("Attempting to delete event:", id);
+    // Add to deleted set to prevent transient resurrection from local cache/snapshot races
+    deletedEventIdsRef.current.add(id);
+
+    // Also clean from localStorage fallback cache under 'church_events' to avoid staleness
+    try {
+      localStorage.removeItem('church_events');
+    } catch (e) {}
+
     // Optimistic UI update: filter out the deleted event immediately so it vanishes instantly
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
     try {
@@ -1278,6 +1435,8 @@ export default function App() {
       console.log("Successfully deleted event from Firestore:", id);
     } catch (error) {
       console.error("Error deleting event:", error);
+      // Remove from set if deletion failed so it can recover
+      deletedEventIdsRef.current.delete(id);
       handleFirestoreError(error, OperationType.DELETE, `events/${id}`);
     }
   };
@@ -1491,11 +1650,15 @@ export default function App() {
   };
 
   const clearAllNotifications = () => {
+    const ids = notifications.map(n => n.id);
+    deleteNotificationsLocal(ids);
     setNotifications([]);
     showAlert("Histórico de notificações limpo.");
   };
 
   const markAllNotificationsRead = () => {
+    const ids = notifications.filter(n => n.unread).map(n => n.id);
+    markNotificationsReadLocal(ids);
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
     showAlert("Todas lidas!");
   };
@@ -1503,19 +1666,20 @@ export default function App() {
   // Desativa as notificações do tipo da aba correspondente ao clicar/entrar nela
   useEffect(() => {
     if (currentTab) {
-      setNotifications(prev => {
-        let changed = false;
-        const next = prev.map(n => {
-          if (n.unread && n.type === currentTab) {
-            changed = true;
-            return { ...n, unread: false };
-          }
-          return n;
-        });
-        return changed ? next : prev;
+      const idsToMark: string[] = [];
+      const nextNotifs = notifications.map(n => {
+        if (n.unread && n.type === currentTab) {
+          idsToMark.push(n.id);
+          return { ...n, unread: false };
+        }
+        return n;
       });
+      if (idsToMark.length > 0) {
+        markNotificationsReadLocal(idsToMark);
+        setNotifications(nextNotifs);
+      }
     }
-  }, [currentTab]);
+  }, [currentTab, notifications.length]);
 
   const tabNotifications: Record<string, number> = {};
   notifications.forEach(n => {

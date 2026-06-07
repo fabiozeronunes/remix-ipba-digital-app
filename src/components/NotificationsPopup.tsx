@@ -7,6 +7,7 @@ import { Notification } from '../types';
 export default function NotificationsPopup({ user, isAuthReady, onRedirect }: { user: any, isAuthReady: boolean, onRedirect: (tab: string, elementId?: string) => void }) {
   const [latestNotification, setLatestNotification] = useState<Notification | null>(null);
   const [show, setShow] = useState(false);
+  const sessionStartTime = React.useRef(Date.now());
 
   useEffect(() => {
     if (!isAuthReady) {
@@ -20,8 +21,12 @@ export default function NotificationsPopup({ user, isAuthReady, onRedirect }: { 
         if (!snapshot.empty) {
           const doc = snapshot.docs[0];
           const data = doc.data() as Notification;
-          setLatestNotification({ id: doc.id, ...data });
-          setShow(true);
+          const createdTime = data.createdAt ? new Date(data.createdAt).getTime() : 0;
+          // Show popup in UI only if notification is fresh (created during or within 10 seconds before session start)
+          if (createdTime > sessionStartTime.current - 10000) {
+            setLatestNotification({ id: doc.id, ...data });
+            setShow(true);
+          }
         }
     }, (error) => {
         console.error('Snapshot listener error:', error);
