@@ -1765,9 +1765,9 @@ export default function App() {
               <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
             </div>
             <div className="flex-grow space-y-1.5">
-              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Instalar App IPBA?</h3>
+              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Criar Atalho do Portal?</h3>
               <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Adicione o app à sua tela inicial para acesso rápido, transmissões estáveis e notificações em tempo real.
+                Adicione um atalho simples na sua tela inicial para acessar o portal IPBA de forma direta pelo navegador.
               </p>
               <div className="flex gap-3 pt-3">
                 <button 
@@ -1777,7 +1777,7 @@ export default function App() {
                   }}
                   className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 cursor-pointer active:scale-95"
                 >
-                  Instalar Agora
+                  Adicionar Atalho
                 </button>
                 <button 
                   onClick={() => {
@@ -2253,23 +2253,23 @@ export default function App() {
               />
             </div>
 
-            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Instalar IPBA DIGITAL</h3>
-            <p className="text-xs text-slate-605 mt-2 mb-5 leading-relaxed">
-              Esta ação criará um **ícone de atalho diretamente na tela inicial do seu smartphone**, permitindo acessar o portal com apenas um toque para acesso rápido, transmissões integradas e notificações.
+            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Adicionar à Tela de Início</h3>
+            <p className="text-xs text-slate-600 mt-2 mb-5 leading-relaxed">
+              Esta ação criará um **atalho simples diretamente na tela principal do seu smartphone**. Não se trata de instalar um aplicativo independente; o atalho abrirá o portal rapidamente dentro do seu próprio navegador de internet.
             </p>
 
             {deferredPrompt ? (
               /* Direct Install Option */
               <div className="w-full space-y-4">
-                <div className="bg-[#00a63e]/10 border border-[#00a63e]/20 rounded-2xl p-4 text-left">
+                <div className="bg-[#002D5E]/5 border border-[#002D5E]/10 rounded-2xl p-4 text-left">
                   <div className="flex gap-2.5 items-start">
-                    <div className="p-1.5 bg-[#00a63e] rounded-lg text-white">
+                    <div className="p-1.5 bg-[#002D5E] rounded-lg text-white">
                       <Smartphone className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-[#002D5E]">Instalação Imediata Disponível</p>
-                      <p className="text-[11px] text-slate-650 leading-normal mt-0.5">
-                        Seu smartphone ou navegador é perfeitamente compatível para instalar o aplicativo agora mesmo.
+                      <p className="text-xs font-bold text-[#002D5E]">Criar Atalho Rápido</p>
+                      <p className="text-[11px] text-slate-600 leading-normal mt-0.5">
+                        Seu dispositivo permite criar o atalho diretamente. O atalho abrirá o app no seu navegador padrão.
                       </p>
                     </div>
                   </div>
@@ -2292,9 +2292,9 @@ export default function App() {
                         setShowInstallGuidance(false);
                       });
                     }}
-                    className="flex-1 py-3 bg-[#00a63e] hover:bg-[#00a63e]/90 text-white transition-all text-xs font-bold rounded-full shadow-md active:scale-95 cursor-pointer"
+                    className="flex-1 py-3 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white transition-all text-xs font-bold rounded-full shadow-md active:scale-95 cursor-pointer"
                   >
-                    Instalar
+                    Criar Atalho
                   </button>
                 </div>
               </div>
@@ -2340,7 +2340,7 @@ export default function App() {
                       <div className="flex gap-3 items-start">
                         <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
                         <p className="text-slate-600 leading-relaxed">
-                          Selecione a opção <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.
+                          Selecione a opção <strong>"Adicionar à tela inicial"</strong>.
                         </p>
                       </div>
                     </>

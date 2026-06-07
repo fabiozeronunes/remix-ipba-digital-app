@@ -450,10 +450,10 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
                 onClick={onInstall}
                 className="flex items-center justify-center gap-2 w-[40%] min-w-[200px] py-3.5 rounded-xl font-extrabold text-xs uppercase tracking-wider text-white bg-[#00a63e] hover:bg-[#00a63e]/90 transition-all active:scale-95 shadow-md cursor-pointer"
               >
-                Instalar App
+                Criar Atalho
               </button>
               <span className="text-white/95 text-[11px] font-semibold tracking-wide">
-                adicione este aplicativo na sua tela inicial.
+                adicione um atalho do portal na sua tela inicial.
               </span>
             </div>
           ) : (

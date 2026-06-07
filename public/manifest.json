@@ -3,7 +3,7 @@
   "short_name": "IPBA DIGITAL",
   "description": "App oficial da IPBA.",
   "start_url": "/",
-  "display": "minimal-ui",
+  "display": "browser",
   "background_color": "#ffffff",
   "theme_color": "#002D5E",
   "icons": [
