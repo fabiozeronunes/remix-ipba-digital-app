@@ -2255,131 +2255,100 @@ export default function App() {
 
             <h3 className="text-xl font-black text-[#002D5E] leading-tight">Instalar Atalho do Portal</h3>
             <p className="text-xs text-slate-600 mt-2 mb-5 leading-relaxed">
-              Esta ação criará um **atalho rápido diretamente na tela inicial do seu smartphone**. Ao contrário de um aplicativo tradicional que ocupa espaço e roda em tela cheia, este atalho abrirá e carregará o link do portal diretamente no seu navegador de internet padrão.
+              Por regras de segurança dos sistemas (Android e iOS), atalhos simples de navegador devem ser adicionados manualmente. 
+              Este processo criará um **atalho leve diretamente na sua tela inicial** que abrirá o portal direto no seu navegador de internet, sem ocupar memória ou instalar um aplicativo em tela cheia.
             </p>
 
-            {deferredPrompt ? (
-              /* Direct Install Option */
-              <div className="w-full space-y-4">
-                <div className="bg-[#002D5E]/5 border border-[#002D5E]/10 rounded-2xl p-4 text-left">
-                  <div className="flex gap-2.5 items-start">
-                    <div className="p-1.5 bg-[#002D5E] rounded-lg text-white">
-                      <Smartphone className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-[#002D5E]">Endereço do Atalho</p>
-                      <p className="text-[11px] text-slate-600 leading-normal mt-0.5">
-                        O atalho será configurado para abrir diretamente pelo navegador no endereço oficial:
-                      </p>
-                      <div className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2 mt-1.5 break-all select-all">
-                        https://fabiozeronunes-remix-ipba-digital-a.vercel.app/
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowInstallGuidance(false)}
-                    className="flex-1 py-3 border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors text-xs font-bold rounded-full cursor-pointer"
-                  >
-                    Agora não
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      deferredPrompt.prompt();
-                      deferredPrompt.userChoice.then((choiceResult: any) => {
-                        setDeferredPrompt(null);
-                        setShowInstallGuidance(false);
-                      });
-                    }}
-                    className="flex-1 py-3 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white transition-all text-xs font-bold rounded-full shadow-md active:scale-95 cursor-pointer"
-                  >
-                    Instalar Atalho
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Manual Guidance Option */
-              <div className="w-full">
-                {/* Platform Switcher Tabs */}
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setInstallPlatform('android')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                      installPlatform === 'android'
-                        ? 'bg-white text-[#002D5E] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Android / Chrome
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInstallPlatform('ios')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                      installPlatform === 'ios'
-                        ? 'bg-white text-[#002D5E] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    iOS / Safari
-                  </button>
-                </div>
-
-                {/* Instructions List */}
-                <div className="space-y-3.5 mb-5 text-left text-xs bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                  {installPlatform === 'android' ? (
-                    <>
-                      <div className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-                        <p className="text-slate-600 leading-relaxed">
-                          Toque no ícone de <strong>três pontos (⋮)</strong> no canto superior direito do seu navegador Chrome.
-                        </p>
-                      </div>
-                      <div className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-                        <p className="text-slate-600 leading-relaxed">
-                          Selecione a opção <strong>"Adicionar à tela inicial"</strong>.
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-                        <p className="text-slate-600 leading-relaxed">
-                          Toque no botão <strong>Compartilhar</strong> (ícone de um quadrado com uma seta para cima <span className="inline-block px-1 border border-slate-200 rounded text-[10px] bg-white">↑</span>) na barra de navegação.
-                        </p>
-                      </div>
-                      <div className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-                        <p className="text-slate-600 leading-relaxed">
-                          Role as opções para baixo e selecione <strong>"Adicionar à Tela de Início"</strong>.
-                        </p>
-                      </div>
-                      <div className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
-                        <p className="text-slate-600 leading-relaxed">
-                          Toque em <strong>"Adicionar"</strong> no canto superior direito para finalizar.
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
+            <div className="w-full">
+              {/* Platform Switcher Tabs */}
+              <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
                 <button
                   type="button"
-                  onClick={() => setShowInstallGuidance(false)}
-                  className="w-full py-3.5 bg-[#5d9b9b] hover:bg-[#5d9b9b]/90 text-white font-extrabold text-xs uppercase tracking-widest transition-all rounded-full shadow-md active:scale-95 cursor-pointer"
+                  onClick={() => setInstallPlatform('android')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    installPlatform === 'android'
+                      ? 'bg-white text-[#002D5E] shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
                 >
-                  Entendi
+                  Android / Chrome
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInstallPlatform('ios')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    installPlatform === 'ios'
+                      ? 'bg-white text-[#002D5E] shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  iOS / Safari
                 </button>
               </div>
-            )}
+
+              {/* Link Box */}
+              <div className="bg-[#002D5E]/5 border border-[#002D5E]/10 rounded-2xl p-3 mb-4 text-left">
+                <p className="text-[10px] font-bold text-[#002D5E] uppercase tracking-wider mb-1">Endereço do Portal:</p>
+                <div className="text-[11px] font-mono text-[#002D5E] bg-white border border-slate-100 rounded-lg p-2 break-all select-all selection:bg-blue-100">
+                  https://fabiozeronunes-remix-ipba-digital-a.vercel.app/
+                </div>
+              </div>
+
+              {/* Instructions List */}
+              <div className="space-y-4 mb-5 text-left text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                {installPlatform === 'android' ? (
+                  <>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">1</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Toque no ícone de <strong>três pontos (⋮)</strong> no canto superior direito do seu navegador Chrome.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">2</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Selecione a opção <strong>"Adicionar à tela de início"</strong> (ou <strong>"Adicionar à tela inicial"</strong>).
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">3</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Toque em <strong>"Adicionar"</strong>. Pronto! O atalho foi criado na tela principal e abrirá sempre no navegador.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">1</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Toque no botão de <strong>Compartilhar</strong> (ícone de um quadrado com uma seta para cima <span className="inline-block px-1 border border-slate-200 rounded text-[10px] bg-white font-mono">↑</span>) localizado na barra inferior do Safari.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">2</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Role a lista de opções para baixo e toque em <strong>"Adicionar à Tela de Início"</strong>.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <span className="w-5 h-5 rounded-full bg-[#002D5E]/10 text-[#002D5E] flex items-center justify-center font-black text-xs shrink-0 mt-0.5">3</span>
+                      <p className="text-slate-600 leading-relaxed">
+                        Toque em <strong>"Adicionar"</strong> no canto superior direito para confirmar.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowInstallGuidance(false)}
+                className="w-full py-3.5 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white font-extrabold text-xs uppercase tracking-widest transition-all rounded-full shadow-md active:scale-95 cursor-pointer"
+              >
+                Entendi, Adicionar Atalho
+              </button>
+            </div>
           </div>
         </div>
       )}
