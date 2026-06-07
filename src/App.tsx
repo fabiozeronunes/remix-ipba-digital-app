@@ -2253,9 +2253,9 @@ export default function App() {
               />
             </div>
 
-            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Adicionar à Tela de Início</h3>
+            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Instalar Atalho do Portal</h3>
             <p className="text-xs text-slate-600 mt-2 mb-5 leading-relaxed">
-              Esta ação criará um **atalho simples diretamente na tela principal do seu smartphone**. Não se trata de instalar um aplicativo independente; o atalho abrirá o portal rapidamente dentro do seu próprio navegador de internet.
+              Esta ação criará um **atalho rápido diretamente na tela inicial do seu smartphone**. Ao contrário de um aplicativo tradicional que ocupa espaço e roda em tela cheia, este atalho abrirá e carregará o link do portal diretamente no seu navegador de internet padrão.
             </p>
 
             {deferredPrompt ? (
@@ -2266,11 +2266,14 @@ export default function App() {
                     <div className="p-1.5 bg-[#002D5E] rounded-lg text-white">
                       <Smartphone className="w-4 h-4" />
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-[#002D5E]">Criar Atalho Rápido</p>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-[#002D5E]">Endereço do Atalho</p>
                       <p className="text-[11px] text-slate-600 leading-normal mt-0.5">
-                        Seu dispositivo permite criar o atalho diretamente. O atalho abrirá o app no seu navegador padrão.
+                        O atalho será configurado para abrir diretamente pelo navegador no endereço oficial:
                       </p>
+                      <div className="text-[10px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2 mt-1.5 break-all select-all">
+                        https://fabiozeronunes-remix-ipba-digital-a.vercel.app/
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2294,7 +2297,7 @@ export default function App() {
                     }}
                     className="flex-1 py-3 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white transition-all text-xs font-bold rounded-full shadow-md active:scale-95 cursor-pointer"
                   >
-                    Criar Atalho
+                    Instalar Atalho
                   </button>
                 </div>
               </div>
