@@ -374,6 +374,7 @@ export default function PerfilSection({
     const nextPrefs = { ...notifPrefs, [key]: value };
     setNotifPrefs(nextPrefs);
     localStorage.setItem('church_notif_preferences', JSON.stringify(nextPrefs));
+    onUpdateUser({ notificationPreferences: nextPrefs });
     
     if (key === 'live') {
       setNotificationLive(value);

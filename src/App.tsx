@@ -1445,28 +1445,41 @@ export default function App() {
     showAlert("Sua sessão foi encerrada com sucesso.");
   };
 
-  const handleUpdateUser = (updatedUser: Partial<User>, targetEmail?: string) => {
+  const handleUpdateUser = async (updatedUser: Partial<User>, targetEmail?: string) => {
     const emailToFind = (targetEmail || updatedUser.email || user?.email || '').trim().toLowerCase();
     const isoString = new Date().toISOString();
     
     // 1. If we are updating the current logged-in user, update the user state synchronously
-    if (user?.email && user.email.trim().toLowerCase() === emailToFind) {
-      setUser(prev => {
-        if (!prev) return null;
-        const nextUser = { ...prev, ...updatedUser, updatedAt: isoString };
-        localStorage.setItem('church_current_user', JSON.stringify(nextUser));
-        return nextUser;
-      });
-    }
-
-    // 2. Synchronously update or register the user in the dbUsers array in App.tsx
+    const userDataToUpdate = { ...updatedUser, updatedAt: isoString };
+    
     if (emailToFind) {
+      // 0. Update Firestore
+      const docId = getUserDocId(emailToFind);
+      try {
+        await setDoc(doc(db, 'users', docId), userDataToUpdate, { merge: true });
+        console.log(`[Firestore] User ${emailToFind} updated/created successfully.`);
+      } catch (err) {
+        console.error(`[Firestore] Failed to update user ${emailToFind}:`, err);
+        handleFirestoreError(err, OperationType.WRITE, 'users');
+      }
+
+      // 1. If we are updating the current logged-in user, update the user state synchronously
+      if (user?.email && user.email.trim().toLowerCase() === emailToFind) {
+        setUser(prev => {
+          if (!prev) return null;
+          const nextUser = { ...prev, ...userDataToUpdate };
+          localStorage.setItem('church_current_user', JSON.stringify(nextUser));
+          return nextUser;
+        });
+      }
+
+      // 2. Synchronously update or register the user in the dbUsers array in App.tsx
       let wasFound = false;
       setDbUsers(prev => {
         let nextUsers = prev.map(u => {
           if (u.email?.trim().toLowerCase() === emailToFind) {
             wasFound = true;
-            return { ...u, ...updatedUser, updatedAt: isoString };
+            return { ...u, ...userDataToUpdate };
           }
           return u;
         });
@@ -1503,8 +1516,19 @@ export default function App() {
     }
   };
 
-  const handleDeleteUser = (email: string) => {
+  const handleDeleteUser = async (email: string) => {
     const cleanEmail = email.trim().toLowerCase();
+    
+    // 0. Update Firestore
+    const docId = getUserDocId(cleanEmail);
+    try {
+      await deleteDoc(doc(db, 'users', docId));
+      console.log(`[Firestore] User ${cleanEmail} deleted successfully.`);
+    } catch (err) {
+      console.error(`[Firestore] Failed to delete user ${cleanEmail}:`, err);
+      handleFirestoreError(err, OperationType.DELETE, 'users');
+    }
+
     setDbUsers(prev => {
       const nextUsers = prev.filter(u => (u.email || '').trim().toLowerCase() !== cleanEmail);
       localStorage.setItem('church_users', JSON.stringify(nextUsers));
