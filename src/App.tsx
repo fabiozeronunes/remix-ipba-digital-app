@@ -178,26 +178,61 @@ export default function App() {
 
   const handleDismissSoftPrompt = () => {
     setShowSoftNotifPrompt(false);
-    localStorage.setItem('church_soft_prompt_dismissed', 'true');
+    try {
+      localStorage.setItem('church_soft_prompt_dismissed', 'true');
+    } catch (e) {
+      console.warn("localStorage is blocked:", e);
+    }
   };
 
   const handleNativePermissionRequest = async () => {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) {
+      setShowSoftNotifPrompt(false);
+      try {
+        localStorage.setItem('church_soft_prompt_dismissed', 'true');
+      } catch (e) {}
+      showAlert("⚠️ Este dispositivo ou navegador não suporta notificações nativas.");
+      return;
+    }
     
     try {
-      const permission = await Notification.requestPermission();
+      let permission: NotificationPermission;
+      const requestResult = Notification.requestPermission();
+      
+      if (requestResult && typeof requestResult.then === 'function') {
+        permission = await requestResult;
+      } else {
+        permission = await new Promise<NotificationPermission>((resolve) => {
+          Notification.requestPermission(resolve);
+        });
+      }
+      
       console.log('Permission result:', permission);
       setShowSoftNotifPrompt(false);
-      localStorage.setItem('church_soft_prompt_dismissed', 'true');
+      try {
+        localStorage.setItem('church_soft_prompt_dismissed', 'true');
+      } catch (e) {}
       
       if (permission === 'granted') {
         setToast("✅ Notificações ativadas com sucesso!");
+        showAlert("🔔 Notificações ativadas com sucesso!");
       } else {
         setToast("⚠️ Notificações não ativadas.");
+        showAlert("⚠️ Permissão de notificações não concedida. Você pode alterar isso nas configurações do navegador.");
       }
     } catch (err) {
       console.error('Erro ao pedir permissão:', err);
       setShowSoftNotifPrompt(false);
+      try {
+        localStorage.setItem('church_soft_prompt_dismissed', 'true');
+      } catch (e) {}
+      
+      const isIframe = window.self !== window.top;
+      if (isIframe) {
+        showAlert("ℹ️ Para autorizar as notificações do portal, abra o app fora da janela do AI Studio! Use o ícone de abrir em uma nova aba no canto superior direito para acessar diretamente no seu navegador.");
+      } else {
+        showAlert("⚠️ Erro ao solicitar notificações: certifique-se de que não estão bloqueadas nas preferências do seu navegador.");
+      }
     }
   };
 
