@@ -55,14 +55,28 @@ export default function HomeLiveSection({
     const eventMonthIndex = months.indexOf(e.month);
     if (eventMonthIndex === -1) return false;
     
-    const eventDate = new Date(currentYear, eventMonthIndex, e.day);
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const nowMonth = now.getMonth();
+    const nowDay = now.getDate();
     
-    // Hide expired events
-    if (eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())) return false;
+    // Robustly determine the correct year for the event
+    let eventYear = currentYear;
+    if (eventMonthIndex < nowMonth && (nowMonth - eventMonthIndex) > 6) {
+      eventYear = currentYear + 1;
+    } else if (eventMonthIndex > nowMonth && (eventMonthIndex - nowMonth) > 6) {
+      eventYear = currentYear - 1;
+    }
     
-    // Only current and next month
-    const diff = (eventDate.getMonth() - now.getMonth() + 12) % 12;
+    // Compare YYYYMMDD numerically so it is 100% immune to timezone and clock-drift issues!
+    const nowVal = currentYear * 10000 + (nowMonth + 1) * 100 + nowDay;
+    const eventVal = eventYear * 10000 + (eventMonthIndex + 1) * 100 + e.day;
+    
+    // Hide events strictly before today
+    if (eventVal < nowVal) return false;
+    
+    // Limit to current month and next month (diff <= 1)
+    const diff = (eventMonthIndex - nowMonth + 12) % 12;
     return diff <= 1;
   });
   

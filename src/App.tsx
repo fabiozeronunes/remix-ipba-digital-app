@@ -1689,6 +1689,19 @@ export default function App() {
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Novo Evento Cadastrado!', `Não perca: "${newEvent.title}" foi agendado.`);
 
+    // Append a live system notification as well
+    setNotifications((prev) => [
+      {
+        id: `nt-new-${Date.now()}`,
+        title: 'Nova Atividade Publicada',
+        text: `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`,
+        time: 'Agora mesmo',
+        unread: true,
+        type: 'eventos'
+      },
+      ...prev
+    ]);
+
     // Add system notification for members
     addAppNotification('event', 'Nova Atividade Publicada', `Foi cadastrada uma nova atividade: "${newEvent.title}". Visualize na aba Eventos!`, 'eventos');
   };
@@ -1760,6 +1773,19 @@ export default function App() {
 
     // Trigger smartphone notification!
     triggerPhoneNotification('event', '📅 Evento Atualizado!', `Atenção: o evento "${updatedEvent.title}" foi atualizado.`);
+
+    // Append a live system notification as well
+    setNotifications((prev) => [
+      {
+        id: `nt-update-${Date.now()}`,
+        title: 'Atividade Atualizada',
+        text: `As informações da atividade "${updatedEvent.title}" foram atualizadas.`,
+        time: 'Agora mesmo',
+        unread: true,
+        type: 'eventos'
+      },
+      ...prev
+    ]);
 
     // Add system notification for members
     addAppNotification('event', 'Atividade Atualizada', `As informações da atividade "${updatedEvent.title}" foram atualizadas.`, 'eventos');
