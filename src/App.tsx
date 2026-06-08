@@ -908,28 +908,45 @@ export default function App() {
         list.push(notifItem);
 
       // Detecção de novos itens para notificações
-      if (!notificationsInitialSync.current) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const data = change.doc.data() as AppNotification;
-            console.log("[Notifications] Nova notificação detectada:", data);
+      const newNotifs: AppNotification[] = [];
+      const readIds = getReadNotificationIds();
+      const deletedIds = getDeletedNotificationIds();
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          const id = change.doc.id;
+          
+          if (!deletedIds.includes(id)) {
+            let typeStr: any = data.type || data.targetTab || 'home';
+            if (typeStr === 'event') typeStr = 'eventos';
+            if (typeStr === 'prayer') typeStr = 'oracao';
+            if (typeStr === 'study') typeStr = 'estudos';
+            if (typeStr === 'live') typeStr = 'home';
+            if (typeStr === 'cell') typeStr = 'celulas';
+
+            const isUnread = !readIds.includes(id);
+
+            const notifItem: AppNotification = {
+              id: id,
+              title: data.title || '',
+              text: data.message || data.text || '',
+              time: data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : 'Agora mesmo',
+              unread: isUnread,
+              type: typeStr
+            };
+            
+            newNotifs.push(notifItem);
+            
+            if (!notificationsInitialSync.current && isUnread) {
+              newItemsToTrigger.push(notifItem);
+            }
           }
-        });
-      }
-      notificationsInitialSync.current = false;
-        
-        seenNotifIds.current.add(id);
+        }
       });
-
-      // Populate seen ids initially if search is done
-      if (notificationsInitialSync.current) {
-        snapshot.forEach((snapDoc) => {
-          seenNotifIds.current.add(snapDoc.id);
-        });
-        notificationsInitialSync.current = false;
-      }
-
-      setNotifications(list);
+      notificationsInitialSync.current = false;
+      
+      setNotifications(newNotifs);
 
       // Trigger alerts/chimes for truly new notifications received in real-time
       newItemsToTrigger.forEach(item => {
@@ -943,10 +960,11 @@ export default function App() {
 
         triggerPhoneNotification(triggerType, item.title, item.text);
       });
-
     }, (error) => {
       console.warn("Firestore notifications query failed:", error);
     });
+    return () => unsubscribe();
+  }, [isAuthReady]);
 
     return () => unsubscribe();
   }, [isAuthReady]);
