@@ -16,7 +16,7 @@ import {
   Share2
 } from 'lucide-react';
 import { User } from '../types';
-import { auth, db, getUserDocId } from '../firebase';
+import { auth, db, getUserDocId, syncFirebaseAuthWithEmailPassword } from '../firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -147,6 +147,13 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
     const adminEmail = 'fabiozeronunes@gmail.com';
     const docId = getUserDocId(adminEmail);
     let adminUser: User | null = null;
+
+    // Sincroniza em segundo plano com o Firebase Auth
+    try {
+      await syncFirebaseAuthWithEmailPassword(adminEmail, '1q2w3e4r');
+    } catch (authErr) {
+      console.warn("Could not sync admin to Firebase Auth directly:", authErr);
+    }
 
     try {
       const snap = await getDoc(doc(db, 'users', docId));
@@ -327,6 +334,13 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
       return;
     }
 
+    // Sincroniza as credenciais em segundo plano com o Firebase Auth
+    try {
+      await syncFirebaseAuthWithEmailPassword(cleanEmail, cleanPassword);
+    } catch (authSyncError) {
+      console.warn("Plano de autenticação por e-mail secundário do Firebase falhou:", authSyncError);
+    }
+
     onLoginSuccess(matchedUser);
     onShowAlert(`Seja bem-vindo de volta, ${matchedUser.name}! Sessão iniciada.`);
   };
@@ -377,6 +391,13 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
       const docId = getUserDocId(regEmail);
       await setDoc(doc(db, 'users', docId), newUser);
       
+      // Sincroniza as credenciais de novo cadastro com o Firebase Auth
+      try {
+        await syncFirebaseAuthWithEmailPassword(regEmail.trim(), regPassword);
+      } catch (authSyncError) {
+        console.warn("Auto-registro do Firebase Auth falhou:", authSyncError);
+      }
+
       // Sign in automatically
       onLoginSuccess(newUser);
       onShowAlert(`Cadastro de membro realizado com sucesso! Bem-vindo(a), ${newUser.name}.`);

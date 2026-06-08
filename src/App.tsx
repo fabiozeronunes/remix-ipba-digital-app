@@ -31,7 +31,7 @@ import {
   INITIAL_CONTRIBUTIONS 
 } from './data';
 
-import { auth, db, handleFirestoreError, OperationType, getUserDocId } from './firebase';
+import { auth, db, handleFirestoreError, OperationType, getUserDocId, syncFirebaseAuthWithEmailPassword } from './firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { 
   collection, 
@@ -208,21 +208,54 @@ export default function App() {
     userRef.current = user;
   }, [user]);
 
-  // Background Firebase anonymous login to ensure all queries succeed if not signed in with Google
+  // Background Firebase anonymous login and session restoration on startup
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      if (!fbUser) {
-        signInAnonymously(auth)
-          .then(() => {
-            setIsAuthReady(true);
-          })
-          .catch((err) => {
-            console.warn("Anonymous sign-in failed (might be disabled, continuing anyway):", err);
-            setIsAuthReady(true);
-          });
-      } else {
-        setIsAuthReady(true);
-      }
+      const handleAuthCheck = async () => {
+        if (!fbUser) {
+          const storedUserJson = localStorage.getItem('church_current_user');
+          if (storedUserJson) {
+            try {
+              const parsedUser = JSON.parse(storedUserJson);
+              if (parsedUser && parsedUser.email && parsedUser.password) {
+                console.log("[Auth Restoration] Restoring session via email-password for:", parsedUser.email);
+                const success = await syncFirebaseAuthWithEmailPassword(parsedUser.email, parsedUser.password);
+                if (success) {
+                  setIsAuthReady(true);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn("[Auth Restoration] Error parsing saved current user:", err);
+            }
+          }
+          
+          signInAnonymously(auth)
+            .then(() => {
+              setIsAuthReady(true);
+            })
+            .catch((err) => {
+              console.warn("Anonymous sign-in failed (might be disabled, continuing anyway):", err);
+              setIsAuthReady(true);
+            });
+        } else {
+          const storedUserJson = localStorage.getItem('church_current_user');
+          if (storedUserJson) {
+            try {
+              const parsedUser = JSON.parse(storedUserJson);
+              if (parsedUser && parsedUser.email && fbUser.email && fbUser.email.toLowerCase() !== parsedUser.email.toLowerCase()) {
+                console.log("[Auth Restoration] Email mismatch detected. Re-syncing auth for:", parsedUser.email);
+                await syncFirebaseAuthWithEmailPassword(parsedUser.email, parsedUser.password);
+              }
+            } catch (err) {
+              console.warn("[Auth Restoration] Error checking email matches:", err);
+            }
+          }
+          setIsAuthReady(true);
+        }
+      };
+
+      handleAuthCheck();
     });
     return () => unsubscribe();
   }, []);
@@ -1170,6 +1203,13 @@ export default function App() {
     const docId = getUserDocId(adminEmail);
     let adminUser: User | null = null;
     
+    // Dynamically synchronize the administrative user credentials with Firebase Auth
+    try {
+      await syncFirebaseAuthWithEmailPassword(adminEmail, '1q2w3e4r');
+    } catch (authErr) {
+      console.warn("Could not sync admin to Firebase Auth directly:", authErr);
+    }
+    
     try {
       const snap = await getDoc(doc(db, 'users', docId));
       if (snap.exists()) {
@@ -1259,7 +1299,14 @@ export default function App() {
         ...updatedUser,
         updatedAt: new Date().toISOString()
       }, { merge: true })
-        .catch(err => console.error("Error updating user in Firestore:", err));
+        .then(() => {
+          console.log("Successfully synchronized user profile in Firestore online.");
+        })
+        .catch(err => {
+          console.error("Error updating user in Firestore:", err);
+          showAlert("Aviso: Não foi possível sincronizar o perfil com o servidor online (Permissão negada ou Sem conexão). O perfil continuará salvo localmente no dispositivo.");
+          handleFirestoreError(err, OperationType.UPDATE, `users/${docId}`);
+        });
     }
   };
 
@@ -1454,6 +1501,10 @@ export default function App() {
 
   const handleDeleteEventAndPublish = async (id: string) => {
     console.log("Attempting to delete event:", id);
+    
+    // Save current state for rollback on failure
+    const previousEvents = [...events];
+
     // Add to deleted set to prevent transient resurrection from local cache/snapshot races
     deletedEventIdsRef.current.add(id);
 
@@ -1464,13 +1515,19 @@ export default function App() {
 
     // Optimistic UI update: filter out the deleted event immediately so it vanishes instantly
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
+    
     try {
       await deleteDoc(doc(db, 'events', id));
       console.log("Successfully deleted event from Firestore:", id);
+      showAlert('Atividade removida com sucesso do banco de dados online.');
     } catch (error) {
       console.error("Error deleting event:", error);
-      // Remove from set if deletion failed so it can recover
+      
+      // Rollback optimistic state
+      setEvents(previousEvents);
       deletedEventIdsRef.current.delete(id);
+      
+      showAlert('Erro ao excluir evento online: Permissão negada ou sem conexão.');
       handleFirestoreError(error, OperationType.DELETE, `events/${id}`);
     }
   };

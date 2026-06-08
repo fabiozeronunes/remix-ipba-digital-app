@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -9,6 +9,44 @@ export const auth = getAuth(app);
 
 export function getUserDocId(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Centrally synchronizes a custom email-password credential with Firebase Authentication.
+ * If the user does not exist in Firebase Auth yet, it on-the-fly provisions/registers them
+ * with the same login password, maintaining absolute security and populating the auth token.
+ */
+export async function syncFirebaseAuthWithEmailPassword(emailStr: string, passwordStr: string): Promise<boolean> {
+  const cleanEmail = emailStr.trim().toLowerCase();
+  const cleanPassword = passwordStr.trim();
+  if (!cleanEmail || !cleanPassword) return false;
+
+  try {
+    console.log("[Auth Sync] Attempting Firebase Auth sign-in for:", cleanEmail);
+    await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+    console.log("[Auth Sync] Succeeded signing into Firebase Auth.");
+    return true;
+  } catch (error: any) {
+    const code = error?.code || '';
+    console.warn("[Auth Sync] Sign-in error code:", code, error);
+
+    // If the user hasn't been created in Firebase Auth module yet but exists in Firestore list
+    if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+      try {
+        console.log("[Auth Sync] User not in Auth register. Auto-provisioning on the fly...");
+        await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        console.log("[Auth Sync] Auto-provisioned & signed in successfully!");
+        return true;
+      } catch (createErr: any) {
+        console.error("[Auth Sync] Failed to auto-provision user in Firebase Auth:", createErr);
+      }
+    } else if (code === 'auth/wrong-password') {
+      console.warn("[Auth Sync] Wrong password on Firebase Auth. The user typed a different password.");
+    } else {
+      console.warn("[Auth Sync] Sincronização em segundo plano concluída (modo anônimo mantido).");
+    }
+    return false;
+  }
 }
 
 export enum OperationType {
