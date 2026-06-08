@@ -146,7 +146,22 @@ export default function App() {
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
-  const [events, setEvents] = useState<ChurchEvent[]>([]);
+  const [events, setEvents] = useState<ChurchEvent[]>(() => {
+    try {
+      const rawLocal = localStorage.getItem('church_events');
+      if (rawLocal) {
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed)) {
+          const storedDeleted = localStorage.getItem('church_deleted_event_ids');
+          const deletedSet = storedDeleted ? new Set<string>(JSON.parse(storedDeleted)) : new Set<string>();
+          return parsed.filter((ev: any) => ev && ev.id && !deletedSet.has(ev.id));
+        }
+      }
+    } catch (e) {
+      console.warn("Error parsing initial local church_events:", e);
+    }
+    return [];
+  });
   const [studies, setStudies] = useState<ChurchStudy[]>([]);
   const [radioPrograms, setRadioPrograms] = useState<RadioProgram[]>([]);
   const [transmissions, setTransmissions] = useState<any[]>([]);
@@ -238,10 +253,15 @@ export default function App() {
 
   const [isAuthReady, setIsAuthReady] = useState(false);
   const userRef = useRef<User | null>(user);
+  const eventsRef = useRef<ChurchEvent[]>(events);
 
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
 
   // Background Firebase anonymous login and session restoration on startup
   useEffect(() => {
@@ -380,7 +400,34 @@ export default function App() {
 
   const prayersInitialSync = useRef(true);
   const eventsInitialSync = useRef(true);
-  const deletedEventIdsRef = useRef<Set<string>>(new Set());
+  const getInitialDeletedEventIds = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem('church_deleted_event_ids');
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  };
+
+  const deletedEventIdsRef = useRef<Set<string>>(getInitialDeletedEventIds());
+
+  const saveDeletedEventId = (id: string) => {
+    deletedEventIdsRef.current.add(id);
+    try {
+      localStorage.setItem('church_deleted_event_ids', JSON.stringify(Array.from(deletedEventIdsRef.current)));
+    } catch (e) {
+      console.warn("Failed to persist deleted event IDs:", e);
+    }
+  };
+  
+  const removeDeletedEventId = (id: string) => {
+    deletedEventIdsRef.current.delete(id);
+    try {
+      localStorage.setItem('church_deleted_event_ids', JSON.stringify(Array.from(deletedEventIdsRef.current)));
+    } catch (e) {
+      console.warn("Failed to persist deleted event IDs:", e);
+    }
+  };
 
   // Sync Prayers
   useEffect(() => {
@@ -490,27 +537,46 @@ export default function App() {
       return () => unsubscribe();
     }, [userEmail, isLeader, isAuthReady]);
 
-  // Sync Events
+  // Sync Events (with Stale-While-Revalidate and Last-Write-Wins Conflict Resolution)
   useEffect(() => {
     if (!isAuthReady) return;
-    console.log("[Sync] Iniciando ouvinte global: Events");
+    console.log("[Sync] Iniciando ouvinte global: Events com revalidação SWR e LWW");
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const list: ChurchEvent[] = [];
 
-      // Detecção de novos eventos para notificações gerenciada via central de notificações Firestore
       eventsInitialSync.current = false;
 
       snapshot.forEach((snapDoc) => {
-        if (snapDoc.id !== 'system_seeded_state' && !deletedEventIdsRef.current.has(snapDoc.id)) {
+        const id = snapDoc.id;
+        if (id !== 'system_seeded_state' && !deletedEventIdsRef.current.has(id)) {
           const data = snapDoc.data() as ChurchEvent;
-          list.push({ 
-            id: snapDoc.id, 
+          
+          let finalEvent: ChurchEvent = {
+            id,
             ...data,
             confirmedUsers: data.confirmedUsers || []
-          } as ChurchEvent);
+          };
+          
+          // Last-Write-Wins (LWW) conflict checking: compare event's updatedAt timestamp
+          const localEv = eventsRef.current.find(e => e.id === id);
+          if (localEv && localEv.updatedAt && data.updatedAt) {
+            const localTime = new Date(localEv.updatedAt).getTime();
+            const serverTime = new Date(data.updatedAt).getTime();
+            if (localTime > serverTime) {
+              console.log(`[Conflict Resolution] Preservando o registro local do evento ${id} (atualização local mais recente).`);
+              finalEvent = localEv;
+            }
+          }
+          list.push(finalEvent);
         }
       });
-      console.log(`[Sync] Events atualizados: ${list.length} registros.`);
+
+      console.log(`[Sync] SWR/LWW revalidation completada: ${list.length} eventos para cache.`);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(list));
+      } catch (e) {
+        console.warn("Erro ao salvar cache local de eventos:", e);
+      }
       setEvents(list);
       eventsInitialSync.current = false;
     }, (error) => {
@@ -1521,9 +1587,27 @@ export default function App() {
       going: false,
       updatedAt: new Date().toISOString()
     };
+    
+    // Optimistic update for UI and local storage cache
+    setEvents((prev) => {
+      const updated = [freshEvent, ...prev];
+      try {
+        localStorage.setItem('church_events', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       await setDoc(doc(db, 'events', id), freshEvent);
     } catch (error) {
+      // Rollback on write failure (e.g. forbidden)
+      setEvents((prev) => {
+        const restored = prev.filter(e => e.id !== id);
+        try {
+          localStorage.setItem('church_events', JSON.stringify(restored));
+        } catch (e) {}
+        return restored;
+      });
       handleFirestoreError(error, OperationType.WRITE, `events/${id}`);
     }
     
@@ -1540,16 +1624,17 @@ export default function App() {
     // Save current state for rollback on failure
     const previousEvents = [...events];
 
-    // Add to deleted set to prevent transient resurrection from local cache/snapshot races
-    deletedEventIdsRef.current.add(id);
-
-    // Also clean from localStorage fallback cache under 'church_events' to avoid staleness
-    try {
-      localStorage.removeItem('church_events');
-    } catch (e) {}
+    // Persist to deleted IDs set in LocalStorage so SWR doesn't resurrect it
+    saveDeletedEventId(id);
 
     // Optimistic UI update: filter out the deleted event immediately so it vanishes instantly
-    setEvents((prev) => prev.filter((ev) => ev.id !== id));
+    setEvents((prev) => {
+      const updated = prev.filter((ev) => ev.id !== id);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     
     try {
       await deleteDoc(doc(db, 'events', id));
@@ -1560,7 +1645,11 @@ export default function App() {
       
       // Rollback optimistic state
       setEvents(previousEvents);
-      deletedEventIdsRef.current.delete(id);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(previousEvents));
+      } catch (e) {}
+      
+      removeDeletedEventId(id);
       
       showAlert('Erro ao excluir evento online: Permissão negada ou sem conexão.');
       handleFirestoreError(error, OperationType.DELETE, `events/${id}`);
@@ -1568,13 +1657,30 @@ export default function App() {
   };
 
   const handleUpdateEventAndPublish = async (updatedEvent: ChurchEvent) => {
+    const previousEvents = [...events];
+    const timestampedEvent = {
+      ...updatedEvent,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Optimistic UI & local cache update
+    setEvents((prev) => {
+      const updated = prev.map((ev) => ev.id === timestampedEvent.id ? timestampedEvent : ev);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      await setDoc(doc(db, 'events', updatedEvent.id), {
-        ...updatedEvent,
-        updatedAt: new Date().toISOString()
-      });
+      await setDoc(doc(db, 'events', timestampedEvent.id), timestampedEvent);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `events/${updatedEvent.id}`);
+      // Rollback on permission denied or actual write failure
+      setEvents(previousEvents);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(previousEvents));
+      } catch (e) {}
+      handleFirestoreError(error, OperationType.WRITE, `events/${timestampedEvent.id}`);
     }
 
     // Trigger smartphone notification!
@@ -1857,9 +1963,9 @@ export default function App() {
               <Smartphone className="w-7 h-7 text-emerald-600 animate-bounce" />
             </div>
             <div className="flex-grow space-y-1.5">
-              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Criar Atalho do Portal?</h3>
+              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Criar Atalho no Navegador?</h3>
               <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Adicione um atalho simples na sua tela inicial para acessar o portal IPBA de forma direta pelo navegador.
+                Adicione um atalhado na sua tela de início para abrir o portal IPBA diretamente pelo navegador de internet (sem instalar aplicativo).
               </p>
               <div className="flex gap-3 pt-3">
                 <button 
@@ -2363,13 +2469,13 @@ export default function App() {
               />
             </div>
 
-            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Instalar Atalho do Portal</h3>
+            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Criar Atalho no Navegador</h3>
             
             {deferredPrompt ? (
               /* Automatic Install Section */
               <div className="w-full mt-2">
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Para facilitar seu acesso direto, podemos adicionar um **atalho rápido do portal na sua tela inicial** agora mesmo de forma automatizada. 
+                  Para facilitar seu acesso direto, adicionaremos um **atalho simples na tela de início** para carregar o portal diretamente no ambiente do seu navegador através do link oficial.
                 </p>
 
                 {/* Link Box */}
@@ -2418,8 +2524,7 @@ export default function App() {
               /* Manual Guidance Fallback Section */
               <div className="w-full mt-2">
                 <p className="text-xs text-slate-600 mb-5 leading-relaxed">
-                  Por regras de segurança dos sistemas (Android e iOS), o atalho deve ser adicionado manualmente. 
-                  Este processo criará um **atalho leve diretamente na sua tela inicial** que abrirá o portal direto no seu navegador de internet, sem ocupar memória.
+                  Para garantir que o portal abra sempre no ambiente do seu navegador e não em modo display standalone, adicione um atalho simples. Ele abrirá o portal direto no browser de internet sem ocupar a memória do celular.
                 </p>
 
                 {/* Platform Switcher Tabs */}
