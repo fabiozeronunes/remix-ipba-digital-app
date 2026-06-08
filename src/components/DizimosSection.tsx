@@ -72,12 +72,18 @@ interface DizimosSectionProps {
 export default function DizimosSection({ contributions, userLogged, onAddContribution, onShowAlert, onNavigate }: DizimosSectionProps) {
   const [selectedAmount, setSelectedAmount] = useState<number | 'Outro'>(200);
   const [customAmount, setCustomAmount] = useState('');
-  const [selectedDestination, setSelectedDestination] = useState<Contribution['category']>('Oferta');
+  const [selectedDestination, setSelectedDestination] = useState<Contribution['category']>(() => {
+    return (localStorage.getItem('pref_dizimos_default_destination') as Contribution['category']) || 'Oferta';
+  });
   const [selectedMethod, setSelectedMethod] = useState<Contribution['method']>('Pix');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceKeyGenerated, setInvoiceKeyGenerated] = useState('');
   const [copiedCNPJ, setCopiedCNPJ] = useState(false);
   const [copiedPixCode, setCopiedPixCode] = useState(false);
+
+  const [hideAmounts] = useState<boolean>(() => {
+    return localStorage.getItem('pref_dizimos_hide_amounts') === 'true';
+  });
 
   // Sits at initially R$ 750 (75%)
   const totalContributedGoal = 1000;
@@ -407,7 +413,7 @@ export default function DizimosSection({ contributions, userLogged, onAddContrib
                 </div>
               </div>
               <p className="font-sans font-extrabold text-sm text-primary">
-                R$ {cont.amountVal.toFixed(2)}
+                {hideAmounts ? 'R$ ••••' : `R$ ${cont.amountVal.toFixed(2)}`}
               </p>
             </div>
           ))}

@@ -37,8 +37,12 @@ export default function OracaoSection({
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<typeof CATEGORIES[number]>('Família');
   const [description, setDescription] = useState('');
-  const [visibilidade, setVisibilidade] = useState<'Público' | 'Pastoral'>('Público');
-  const [activeWallTab, setActiveWallTab] = useState<'all' | 'mine'>('all');
+  const [visibilidade, setVisibilidade] = useState<'Público' | 'Pastoral'>(() => {
+    return localStorage.getItem('pref_prayers_anonymous_default') === 'true' ? 'Pastoral' : 'Público';
+  });
+  const [activeWallTab, setActiveWallTab] = useState<'all' | 'mine'>(() => {
+    return localStorage.getItem('pref_prayers_filter_pending') === 'true' ? 'mine' : 'all';
+  });
 
   // Inline editing states for prayer wall
   const [editingId, setEditingId] = useState<string | null>(null);

@@ -26,7 +26,20 @@ interface EstudosSectionProps {
 export default function EstudosSection({ onShowAlert, studies }: EstudosSectionProps) {
   const [activeStudyId, setActiveStudyId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(() => {
+    const prefTag = localStorage.getItem('pref_studies_default_tag');
+    return (prefTag && prefTag !== 'Todos') ? prefTag : null;
+  });
+
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>(() => {
+    return (localStorage.getItem('pref_studies_font_size') as 'normal' | 'large' | 'xlarge') || 'normal';
+  });
+
+  // Re-read configuration if study details opened/loaded
+  useEffect(() => {
+    const activePrefSize = (localStorage.getItem('pref_studies_font_size') as 'normal' | 'large' | 'xlarge') || 'normal';
+    setFontSize(activePrefSize);
+  }, [activeStudyId]);
 
   // Toggle states for viewing media details inside Study
   const [showAudio, setShowAudio] = useState(true);
@@ -422,7 +435,9 @@ export default function EstudosSection({ onShowAlert, studies }: EstudosSectionP
               <p className="text-[10px] font-black uppercase text-indigo-950 tracking-widest block pb-1 border-b border-slate-100">
                 Conteúdo do Estudo
               </p>
-              <div className="text-sm font-medium leading-relaxed whitespace-pre-wrap font-sans text-slate-800 bg-slate-50/50 p-4 rounded-2xl border border-slate-101">
+              <div className={`font-medium leading-relaxed whitespace-pre-wrap font-sans text-slate-800 bg-slate-50/50 p-4 rounded-2xl border border-slate-101 ${
+                fontSize === 'large' ? 'text-base' : fontSize === 'xlarge' ? 'text-lg' : 'text-sm'
+              }`}>
                 {selectedStudy.content}
               </div>
             </div>

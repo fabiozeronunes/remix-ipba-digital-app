@@ -32,7 +32,9 @@ interface ChatMessage {
 const INITIAL_CHAT: ChatMessage[] = [];
 
 export default function AoVivoSection({ userLogged, userName, onShowAlert, userCategory, transmissions: propTransmissions, dbUsers }: AoVivoSectionProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(() => {
+    return localStorage.getItem('pref_play_live_autoplay') === 'true';
+  });
   const [chatList, setChatList] = useState<ChatMessage[]>([]);
   const [newComment, setNewComment] = useState('');
   const [viewerCount, setViewerCount] = useState(42);

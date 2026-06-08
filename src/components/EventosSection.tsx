@@ -10,7 +10,9 @@ interface EventosSectionProps {
 }
 
 export default function EventosSection({ events, onToggleGoing, onShowAlert, onNavigate }: EventosSectionProps) {
-  const [filterMode, setFilterMode] = useState<'todos' | 'confirmados'>('todos');
+  const [filterMode, setFilterMode] = useState<'todos' | 'confirmados'>(() => {
+    return localStorage.getItem('pref_events_only_going') === 'true' ? 'confirmados' : 'todos';
+  });
 
   const filteredEvents = events.filter((ev) => 
     filterMode === 'todos' ? true : ev.going

@@ -23,6 +23,7 @@ import EstudosSection from './components/EstudosSection';
 import EventosSection from './components/EventosSection';
 import AdminSection from './components/AdminSection';
 import SuporteSection from './components/SuporteSection';
+import PerfilSection from './components/PerfilSection';
 
 import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram } from './types';
 import { 
@@ -56,7 +57,7 @@ interface AppNotification {
   text: string;
   time: string;
   unread: boolean;
-  type?: 'home' | 'celulas' | 'login' | 'oracao' | 'dizimos' | 'estudos' | 'aovivo' | 'eventos' | 'admin';
+  type?: 'home' | 'celulas' | 'login' | 'oracao' | 'dizimos' | 'estudos' | 'aovivo' | 'eventos' | 'admin' | 'perfil';
 }
 
 const DEFAULT_TRANSMISSIONS = [
@@ -294,7 +295,7 @@ export default function App() {
     if (!isAuthReady) return;
     
     // Lista de abas consideradas seções online do portal
-    const onlineTabs = ['home', 'eventos', 'celulas', 'oracao', 'estudos', 'aovivo', 'admin', 'dizimos'];
+    const onlineTabs = ['home', 'eventos', 'celulas', 'oracao', 'estudos', 'aovivo', 'admin', 'dizimos', 'perfil'];
     if (onlineTabs.includes(currentTab)) {
       console.log(`[SWR/LWW Trigger] Usuário acessou a seção online: "${currentTab}". Forçando sincronização imediata dos eventos.`);
       forceEventsSyncFromServer();
@@ -1458,15 +1459,44 @@ export default function App() {
       });
     }
 
-    // 2. Synchronously update the dbUsers array in App.tsx
+    // 2. Synchronously update or register the user in the dbUsers array in App.tsx
     if (emailToFind) {
+      let wasFound = false;
       setDbUsers(prev => {
-        const nextUsers = prev.map(u => {
+        let nextUsers = prev.map(u => {
           if (u.email?.trim().toLowerCase() === emailToFind) {
+            wasFound = true;
             return { ...u, ...updatedUser, updatedAt: isoString };
           }
           return u;
         });
+
+        if (!wasFound) {
+          // This is a new registration! We create and append the new user.
+          const newUserPayload: User = {
+            name: updatedUser.name || 'Novo Membro',
+            email: emailToFind,
+            password: updatedUser.password || '1q2w3e4r',
+            category: updatedUser.category || 'Membro Comungante',
+            avatarUrl: updatedUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+            phone: updatedUser.phone || '',
+            birthDate: updatedUser.birthDate || '',
+            address: updatedUser.address || '',
+            ministry: updatedUser.ministry || '',
+            planCount: updatedUser.planCount || 0,
+            prayerCount: updatedUser.prayerCount || 0,
+            eventCount: updatedUser.eventCount || 0,
+            status: updatedUser.status || 'Ativo',
+            updatedAt: isoString
+          };
+          nextUsers.push(newUserPayload);
+          
+          // Log them in immediately if no user is currently logged in!
+          if (!user) {
+            setUser(newUserPayload);
+            localStorage.setItem('church_current_user', JSON.stringify(newUserPayload));
+          }
+        }
         localStorage.setItem('church_users', JSON.stringify(nextUsers));
         return nextUsers;
       });
@@ -2180,6 +2210,20 @@ export default function App() {
             onShowAlert={showAlert}
             dbUsers={dbUsers}
             onInstall={handleInstallClick}
+          />
+        )}
+
+        {currentTab === 'perfil' && (
+          <PerfilSection 
+            user={user} 
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            userPrayersCount={activePrayersCount}
+            userEventsCount={activeGoingCount}
+            userContributionsCount={contributions.length}
+            onShowAlert={showAlert}
+            onUpdateUser={handleUpdateUser}
+            cargos={cargos}
           />
         )}
 

@@ -27,11 +27,15 @@ interface CelulasSectionProps {
 
 export default function CelulasSection({ cells, onToggleJoin, onShowAlert }: CelulasSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterActive, setFilterActive] = useState(true); // default to true so it is readily discoverable!
+  const [filterActive, setFilterActive] = useState(() => {
+    return localStorage.getItem('pref_cells_filter_active') !== 'false';
+  }); // default to true so it is readily discoverable!
   const [showHouseModal, setShowHouseModal] = useState(false);
 
   // Filter States
-  const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem('pref_cells_city_filter') || 'all';
+  });
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('all');
 
   // Route Creator States
