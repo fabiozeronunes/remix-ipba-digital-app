@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, addDoc, setDoc, doc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { User, SupportOption, SupportTicket } from '../types';
 import { LifeBuoy, Send, User as UserIcon, AlertCircle, CheckCircle2, ClipboardList, HelpCircle } from 'lucide-react';
