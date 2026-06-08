@@ -15,6 +15,7 @@ export interface User {
   status?: 'Ativo' | 'Pendente' | 'Suspenso';
   updatedAt?: string;
   notificationPreferences?: Record<string, boolean>;
+  readNotificationIds?: string[];
 }
 
 export interface PrayerRequest {

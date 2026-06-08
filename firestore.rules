@@ -84,7 +84,7 @@ service cloud.firestore {
 
     // SUPPORT OPTIONS (dropdown values configured by admins, read by everyone)
     match /supportOptions/{id} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 

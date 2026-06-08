@@ -2825,7 +2825,6 @@ export default function App() {
         isVisitor={user?.category === 'Visitante'}
         tabNotifications={tabNotifications}
       />
-      {console.log("[DEBUG] BottomNav tabNotifications:", tabNotifications)}
     </div>
   );
 }
