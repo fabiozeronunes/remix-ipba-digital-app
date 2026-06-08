@@ -1080,6 +1080,11 @@ export default function App() {
         const keysToCompare: (keyof User)[] = ['name', 'email', 'phone', 'category', 'avatarUrl', 'status', 'ministry', 'address', 'birthDate', 'password'];
         const hasDifference = keysToCompare.some(k => match[k] !== user[k]);
         if (hasDifference) {
+          // If the Firestore snapshot contains a stale updatedAt timestamp, do not override our newer local state.
+          if (match.updatedAt && user.updatedAt && match.updatedAt < user.updatedAt) {
+            console.log("[Sync] Postponing real-time sync wrapper, local state is newer than Firestore snapshot match.");
+            return;
+          }
           setUser(match);
           localStorage.setItem('church_current_user', JSON.stringify(match));
         }
@@ -1449,12 +1454,13 @@ export default function App() {
 
   const handleUpdateUser = (updatedUser: Partial<User>, targetEmail?: string) => {
     const emailToFind = (targetEmail || updatedUser.email || user?.email || '').trim().toLowerCase();
+    const isoString = new Date().toISOString();
     
     // 1. If we are updating the current logged-in user, update the user state synchronously
     if (user?.email && user.email.trim().toLowerCase() === emailToFind) {
       setUser(prev => {
         if (!prev) return null;
-        const nextUser = { ...prev, ...updatedUser };
+        const nextUser = { ...prev, ...updatedUser, updatedAt: isoString };
         localStorage.setItem('church_current_user', JSON.stringify(nextUser));
         return nextUser;
       });
@@ -1465,7 +1471,7 @@ export default function App() {
       setDbUsers(prev => {
         const nextUsers = prev.map(u => {
           if (u.email?.trim().toLowerCase() === emailToFind) {
-            return { ...u, ...updatedUser };
+            return { ...u, ...updatedUser, updatedAt: isoString };
           }
           return u;
         });
@@ -1473,11 +1479,18 @@ export default function App() {
         return nextUsers;
       });
 
-      // 3. Persist to Firestore
+      // 3. Persist to Firestore while cleanly removing undefined properties
       const docId = getUserDocId(emailToFind);
+      const cleanUpdate: Record<string, any> = {};
+      Object.entries(updatedUser).forEach(([key, val]) => {
+        if (val !== undefined) {
+          cleanUpdate[key] = val;
+        }
+      });
+
       setDoc(doc(db, 'users', docId), {
-        ...updatedUser,
-        updatedAt: new Date().toISOString()
+        ...cleanUpdate,
+        updatedAt: isoString
       }, { merge: true })
         .then(() => {
           console.log("Successfully synchronized user profile in Firestore online.");

@@ -793,6 +793,25 @@ export default function AdminSection({
     try {
       const docId = getUserDocId(cleanEmail);
       await setDoc(doc(db, 'users', docId), newUserPayload);
+
+      // Clean/update local storage 'church_users' immediately to prevent any synchronization races
+      const rawLocal = localStorage.getItem('church_users');
+      if (rawLocal) {
+        try {
+          const parsedLocal: User[] = JSON.parse(rawLocal);
+          let nextLocal = parsedLocal.filter(u => (u.email || '').trim().toLowerCase() !== cleanEmail);
+          nextLocal.push(newUserPayload);
+          localStorage.setItem('church_users', JSON.stringify(nextLocal));
+        } catch (e) {
+          console.error("Erro ao atualizar localStorage localmente:", e);
+        }
+      }
+
+      // Synchronously notify Parent App to update its users real-time state instantly
+      if (onUpdateUser) {
+        onUpdateUser(newUserPayload, cleanEmail);
+      }
+
       onShowAlert(`Membro "${cleanName}" cadastrado com sucesso!`);
       
       // Limpar campos

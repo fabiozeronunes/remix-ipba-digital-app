@@ -434,13 +434,13 @@ export default function PerfilSection({
             <div className="space-y-1">
               <label className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>E-mail</span>
+                <span>E-mail (Identificador principal)</span>
               </label>
               <input 
                 type="email"
+                disabled
                 value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                className="w-full bg-[#f3f4f5] border-none rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary placeholder:text-slate-400 text-[#191c1d]" 
+                className="w-full bg-[#e2e8f0] border-none rounded-xl px-4 py-3 text-sm outline-none text-[#64748b] cursor-not-allowed font-semibold" 
                 placeholder="parceiro@email.com" 
               />
             </div>

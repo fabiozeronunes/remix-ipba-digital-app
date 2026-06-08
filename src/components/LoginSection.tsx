@@ -236,21 +236,23 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
 
     let usersList = [...(dbUsers || [])];
 
-    // Look up in dbUsers first
-    let matchedUser = usersList.find(u => u.email?.trim().toLowerCase() === cleanEmail);
+    let matchedUser: User | null = null;
 
-    // If not found in the state array, query Firestore directly for the live up-to-date document
-    if (!matchedUser) {
-      try {
-        const docId = getUserDocId(cleanEmail);
-        const directDocSnap = await getDoc(doc(db, 'users', docId));
-        if (directDocSnap.exists()) {
-          matchedUser = directDocSnap.data() as User;
-          console.log("Membro encontrado diretamente no Firestore online durante o login:", matchedUser);
-        }
-      } catch (err) {
-        console.warn("Erro ao buscar membro diretamente no Firestore online:", err);
+    // Always attempt to get the absolute fresh document directly from Firestore first to preserve complete profile fields
+    try {
+      const docId = getUserDocId(cleanEmail);
+      const directDocSnap = await getDoc(doc(db, 'users', docId));
+      if (directDocSnap.exists()) {
+        matchedUser = directDocSnap.data() as User;
+        console.log("Membro encontrado diretamente no Firestore online durante o login:", matchedUser);
       }
+    } catch (err) {
+      console.warn("Erro ao buscar membro diretamente no Firestore online:", err);
+    }
+
+    // Fallback to dbUsers state array if offline or query failed
+    if (!matchedUser) {
+      matchedUser = usersList.find(u => u.email?.trim().toLowerCase() === cleanEmail) || null;
     }
 
     // 1. If not found in online db or direct online query, look inside the local storage backup
@@ -367,7 +369,19 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
 
     const usersList = dbUsers || [];
 
-    const emailTaken = usersList.some(u => u.email?.trim().toLowerCase() === regEmail.trim().toLowerCase());
+    let emailTaken = usersList.some(u => u.email?.trim().toLowerCase() === regEmail.trim().toLowerCase());
+    if (!emailTaken) {
+      try {
+        const docId = getUserDocId(regEmail);
+        const directSnap = await getDoc(doc(db, 'users', docId));
+        if (directSnap.exists()) {
+          emailTaken = true;
+        }
+      } catch (err) {
+        console.warn("Erro ao validar duplicidade de e-mail online:", err);
+      }
+    }
+
     if (emailTaken) {
       onShowAlert("Este e-mail já está cadastrado em nosso portal de membros!");
       return;
@@ -652,9 +666,31 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
                   const isFabio = emailVal === 'fabiozeronunes@gmail.com';
                   const initialCategory = isFabio ? 'Coordenador / Admin ( Total )' : 'Membro Comungante';
                   
-                  const usersList = dbUsers || [];
+                  const userDocId = getUserDocId(emailVal);
+                  const userRef = doc(db, 'users', userDocId);
                   
-                  let matched = usersList.find(u => u.email?.trim().toLowerCase() === emailVal);
+                  let matched: User | null = null;
+                  
+                  // Try to retrieve gold-standard live user document from Firestore to preserve all existing fields (phone, address, ministry, birthDate, etc.)
+                  try {
+                    const directSnap = await getDoc(userRef);
+                    if (directSnap.exists()) {
+                      matched = directSnap.data() as User;
+                      console.log("Membro carregado do Firestore durante fallback de login:", matched);
+                    }
+                  } catch (err) {
+                    console.warn("Erro ao buscar membro diretamente no Firestore durante fallback de login:", err);
+                  }
+
+                  // Fallback to local dbUsers list if offline or Firestore doc fetch failed
+                  if (!matched) {
+                    const usersList = dbUsers || [];
+                    const found = usersList.find(u => u.email?.trim().toLowerCase() === emailVal);
+                    if (found) {
+                      matched = { ...found };
+                    }
+                  }
+                  
                   if (!matched) {
                     matched = {
                       name: isFabio ? 'Fabio Nunes' : (emailVal.split('@')[0].toUpperCase()),
@@ -667,22 +703,19 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
                       eventCount: 0,
                       status: 'Ativo'
                     };
-                    const userDocId = getUserDocId(emailVal);
-                    await setDoc(doc(db, 'users', userDocId), matched);
+                    await setDoc(userRef, matched);
                   } else {
                     if (isFabio) {
                       const targetRole = 'Coordenador / Admin ( Total )';
                       if (!matched.category) {
                         matched.category = targetRole;
-                        const userDocId = getUserDocId(emailVal);
-                        await setDoc(doc(db, 'users', userDocId), matched, { merge: true });
+                        await setDoc(userRef, matched, { merge: true });
                       } else if (!matched.category.includes(targetRole)) {
                         const existing = matched.category.split(',').map(c => c.trim()).filter(Boolean);
                         if (!existing.includes(targetRole)) {
                           existing.push(targetRole);
                           matched.category = existing.sort().join(', ');
-                          const userDocId = getUserDocId(emailVal);
-                          await setDoc(doc(db, 'users', userDocId), matched, { merge: true });
+                          await setDoc(userRef, matched, { merge: true });
                         }
                       }
                     }

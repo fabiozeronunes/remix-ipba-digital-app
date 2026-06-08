@@ -34,8 +34,7 @@ service cloud.firestore {
     // USERS
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && hasEmail() && request.auth.token.email.lower() == request.resource.data.email.lower();
-      allow update: if isSignedIn() && (isOwner(resource.data.email) || isAdmin());
+      allow create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
