@@ -47,7 +47,8 @@ import {
   orderBy,
   limit,
   writeBatch,
-  getDocs
+  getDocs,
+  getDocsFromServer
 } from 'firebase/firestore';
 
 interface AppNotification {
@@ -167,6 +168,18 @@ export default function App() {
   const [transmissions, setTransmissions] = useState<any[]>([]);
   const [cargos, setCargos] = useState<string[]>([]);
 
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const userRef = useRef<User | null>(user);
+  const eventsRef = useRef<ChurchEvent[]>(events);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
+
   useEffect(() => {
     if (currentTab === 'home' && 'Notification' in window) {
       try {
@@ -190,6 +203,80 @@ export default function App() {
       }
     }
   }, [currentTab]);
+
+  const forceEventsSyncFromServer = async () => {
+    if (!isAuthReady) return;
+    console.log("[SWR Reset/Force Sync] Revalidando eventos diretamente com o Firestore da nuvem...");
+    try {
+      const snapshot = await getDocsFromServer(collection(db, 'events'));
+      const list: ChurchEvent[] = [];
+      
+      snapshot.forEach((snapDoc) => {
+        const id = snapDoc.id;
+        if (id !== 'system_seeded_state' && !deletedEventIdsRef.current.has(id)) {
+          const data = snapDoc.data() as ChurchEvent;
+          let finalEvent: ChurchEvent = {
+            id,
+            ...data,
+            confirmedUsers: data.confirmedUsers || []
+          };
+          
+          // Last-Write-Wins (LWW) conflict checking
+          const localEv = eventsRef.current.find(e => e.id === id);
+          if (localEv && localEv.updatedAt && data.updatedAt) {
+            const localTime = new Date(localEv.updatedAt).getTime();
+            const serverTime = new Date(data.updatedAt).getTime();
+            if (localTime > serverTime) {
+              console.log(`[SWR Force Sync Conflict] Preservando o registro local do evento ${id} (atualização local mais recente).`);
+              finalEvent = localEv;
+            }
+          }
+          list.push(finalEvent);
+        }
+      });
+      
+      console.log(`[SWR Reset/Force Sync] Completado. ${list.length} eventos forçados diretamente do Firestore.`);
+      try {
+        localStorage.setItem('church_events', JSON.stringify(list));
+      } catch (e) {
+        console.warn("Erro ao salvar cache local via SWR force-sync:", e);
+      }
+      setEvents(list);
+    } catch (err) {
+      console.warn("[SWR Reset/Force Sync] Falha ao sincronizar diretamente via getDocsFromServer. Utilizando cache tolerante offline:", err);
+      try {
+        const cachedSnapshot = await getDocs(collection(db, 'events'));
+        const list: ChurchEvent[] = [];
+        cachedSnapshot.forEach((snapDoc) => {
+          const id = snapDoc.id;
+          if (id !== 'system_seeded_state' && !deletedEventIdsRef.current.has(id)) {
+            const data = snapDoc.data() as ChurchEvent;
+            list.push({
+              id,
+              ...data,
+              confirmedUsers: data.confirmedUsers || []
+            } as ChurchEvent);
+          }
+        });
+        localStorage.setItem('church_events', JSON.stringify(list));
+        setEvents(list);
+      } catch (e) {
+        console.error("[SWR Reset/Force Sync] Sincronização crítica falhou:", e);
+      }
+    }
+  };
+
+  // Força sync imediato ao detectar que o usuário acessou uma seção online do aplicativo
+  useEffect(() => {
+    if (!isAuthReady) return;
+    
+    // Lista de abas consideradas seções online do portal
+    const onlineTabs = ['home', 'eventos', 'celulas', 'oracao', 'estudos', 'aovivo', 'admin', 'dizimos', 'perfil'];
+    if (onlineTabs.includes(currentTab)) {
+      console.log(`[SWR/LWW Trigger] Usuário acessou a seção online: "${currentTab}". Forçando sincronização imediata dos eventos.`);
+      forceEventsSyncFromServer();
+    }
+  }, [currentTab, isAuthReady]);
 
   const handleDismissSoftPrompt = () => {
     setShowSoftNotifPrompt(false);
@@ -250,18 +337,6 @@ export default function App() {
       }
     }
   };
-
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const userRef = useRef<User | null>(user);
-  const eventsRef = useRef<ChurchEvent[]>(events);
-
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  useEffect(() => {
-    eventsRef.current = events;
-  }, [events]);
 
   // Background Firebase anonymous login and session restoration on startup
   useEffect(() => {
@@ -1971,7 +2046,18 @@ export default function App() {
                 <button 
                   onClick={() => {
                     setShowSoftInstallPrompt(false);
-                    handleInstallClick();
+                    if (deferredPrompt) {
+                      deferredPrompt.prompt();
+                      deferredPrompt.userChoice.then((choiceResult: any) => {
+                        console.log("[PWA] User choice outcome:", choiceResult.outcome);
+                        setDeferredPrompt(null);
+                        setTimeout(() => {
+                          setShowSoftNotifPrompt(true);
+                        }, 800);
+                      });
+                    } else {
+                      handleInstallClick();
+                    }
                   }}
                   className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 cursor-pointer active:scale-95"
                 >
@@ -2611,11 +2697,23 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowInstallGuidance(false);
-                    // Ask notification permission visually!
-                    setTimeout(() => {
-                      setShowSoftNotifPrompt(true);
-                    }, 600);
+                    if (deferredPrompt) {
+                      deferredPrompt.prompt();
+                      deferredPrompt.userChoice.then((choiceResult: any) => {
+                        console.log("[PWA] User choice outcome:", choiceResult.outcome);
+                        setDeferredPrompt(null);
+                        setShowInstallGuidance(false);
+                        setTimeout(() => {
+                          setShowSoftNotifPrompt(true);
+                        }, 800);
+                      });
+                    } else {
+                      setShowInstallGuidance(false);
+                      // Ask notification permission visually!
+                      setTimeout(() => {
+                        setShowSoftNotifPrompt(true);
+                      }, 600);
+                    }
                   }}
                   className="w-full py-3.5 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white font-extrabold text-xs uppercase tracking-widest transition-all rounded-full shadow-md active:scale-95 cursor-pointer"
                 >
