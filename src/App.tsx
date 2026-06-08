@@ -1805,37 +1805,49 @@ export default function App() {
 
       {/* Soft Notification Prompt Banner - Estilo Adaptativo para PWA Standalone */}
       {showSoftNotifPrompt && (
-        <div className="fixed top-24 left-4 right-4 mx-auto max-w-sm bg-white rounded-3xl shadow-[0_20px_50px_rgba(79,70,229,0.3)] border-2 border-indigo-100 p-6 z-[9999] animate-banner-slide-in ring-8 ring-indigo-500/10">
-          <div className="flex items-start gap-5">
-            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-indigo-100">
-              <Bell className="w-7 h-7 text-indigo-600 animate-bounce-slow" />
-            </div>
-            <div className="flex-grow space-y-1.5">
-              <h3 className="text-base font-extrabold text-[#191c1d] tracking-tight">Ativar Notificações no App?</h3>
-              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                Agora que você instalou a IPB Digital, ative os avisos para não perder cultos ao vivo e intercessões da igreja.
-              </p>
-              <div className="flex gap-3 pt-3">
-                <button 
-                  onClick={handleNativePermissionRequest}
-                  className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer active:scale-95"
-                >
-                  Sim, Ativar
-                </button>
-                <button 
-                  onClick={handleDismissSoftPrompt}
-                  className="text-slate-400 px-4 py-3 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 cursor-pointer"
-                >
-                  Agora não
-                </button>
-              </div>
-            </div>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-slate-100 flex flex-col items-center text-center">
+            {/* Close Button */}
             <button 
+              type="button"
               onClick={handleDismissSoftPrompt}
-              className="text-slate-300 hover:text-slate-500 transition-colors p-1 -mt-1"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 cursor-pointer"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
+
+            {/* Icon */}
+            <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center p-2 shadow-inner border border-indigo-100 mb-4 mt-2">
+              <Bell className="w-10 h-10 text-indigo-600 animate-bounce-slow" />
+            </div>
+
+            <h3 className="text-xl font-black text-[#002D5E] leading-tight">Receber Notificações do Portal?</h3>
+            
+            <p className="text-xs text-slate-600 mt-2 mb-5 leading-relaxed">
+              Ative as notificações para receber avisos de cultos ao vivo, pedidos de oração urgentes, eventos oficiais e atualizações diretamente no seu celular.
+            </p>
+
+            {/* Link / Info Box */}
+            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mb-5 text-left text-[11px] text-slate-500 leading-relaxed">
+              🔔 <strong>Avisos Rápidos:</strong> Fique tranquilo, nós respeitamos sua privacidade. Você receberá poucas notificações relevantes e poderá desativar a qualquer momento nas configurações do seu navegador.
+            </div>
+
+            <div className="w-full flex gap-3">
+              <button
+                type="button"
+                onClick={handleDismissSoftPrompt}
+                className="flex-1 py-3.5 border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors text-xs font-bold rounded-full cursor-pointer"
+              >
+                Agora Não
+              </button>
+              <button
+                type="button"
+                onClick={handleNativePermissionRequest}
+                className="flex-grow-[1.5] py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition-all rounded-full shadow-md active:scale-95 cursor-pointer"
+              >
+                Sim, Autorizar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2240,9 +2252,9 @@ export default function App() {
               type="button"
               onClick={() => {
                 setShowInstallGuidance(false);
-                // Prompt for notification permission even if they refuse/close, per user flow
+                // Prompt for notification permission visually!
                 setTimeout(() => {
-                  handleNativePermissionRequest();
+                  setShowSoftNotifPrompt(true);
                 }, 600);
               }}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 cursor-pointer"
@@ -2281,9 +2293,9 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setShowInstallGuidance(false);
-                      // Trigger notifications permission request right after
+                      // Trigger notifications permission request modal right after
                       setTimeout(() => {
-                        handleNativePermissionRequest();
+                        setShowSoftNotifPrompt(true);
                       }, 600);
                     }}
                     className="flex-1 py-3.5 border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors text-xs font-bold rounded-full cursor-pointer"
@@ -2298,9 +2310,9 @@ export default function App() {
                         console.log("[PWA] User choice outcome:", choiceResult.outcome);
                         setDeferredPrompt(null);
                         setShowInstallGuidance(false);
-                        // Trigger notifications permission request right after choice
+                        // Trigger notifications permission request modal right after choice
                         setTimeout(() => {
-                          handleNativePermissionRequest();
+                          setShowSoftNotifPrompt(true);
                         }, 800);
                       });
                     }}
@@ -2403,9 +2415,9 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setShowInstallGuidance(false);
-                    // Ask notification permission immediately!
+                    // Ask notification permission visually!
                     setTimeout(() => {
-                      handleNativePermissionRequest();
+                      setShowSoftNotifPrompt(true);
                     }, 600);
                   }}
                   className="w-full py-3.5 bg-[#002D5E] hover:bg-[#002D5E]/90 text-white font-extrabold text-xs uppercase tracking-widest transition-all rounded-full shadow-md active:scale-95 cursor-pointer"
