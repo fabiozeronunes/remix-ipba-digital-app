@@ -907,12 +907,16 @@ export default function App() {
 
         list.push(notifItem);
 
-        // Track new notifications for trigger
-        // Completely bypass clock drift/timezone sync issues:
-        // Any incoming ID we haven't seen yet during our active session triggers a banner instantly!
-        if (!notificationsInitialSync.current && !seenNotifIds.current.has(id)) {
-          newItemsToTrigger.push(notifItem);
-        }
+      // Detecção de novos itens para notificações
+      if (!notificationsInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as AppNotification;
+            console.log("[Notifications] Nova notificação detectada:", data);
+          }
+        });
+      }
+      notificationsInitialSync.current = false;
         
         seenNotifIds.current.add(id);
       });

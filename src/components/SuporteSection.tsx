@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, onSnapshot, addDoc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, setDoc, doc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { User, SupportOption, SupportTicket } from '../types';
 import { LifeBuoy, Send, User as UserIcon, AlertCircle, CheckCircle2, ClipboardList, HelpCircle } from 'lucide-react';
 
@@ -118,12 +118,15 @@ export default function SuporteSection({ user, onShowAlert, isAuthReady = true }
         status: 'Pendente'
       };
 
-      await addDoc(collection(db, 'supportTickets'), payload);
+      const id = `st-${Date.now()}`;
+      console.log("[Support] Submitting ticket with ID:", id, "for:", user?.email);
+      await setDoc(doc(db, 'supportTickets', id), { ...payload, id });
       onShowAlert("Chamado de suporte enviado com sucesso!");
       setTexto('');
-    } catch (err) {
-      console.error("Error creating support ticket: ", err);
-      onShowAlert("Erro ao enviar o chamado de suporte. Tente novamente.");
+    } catch (err: any) {
+      console.error("[Support] Error creating support ticket: ", err, "Auth user:", auth.currentUser?.email);
+      const errorMessage = err?.message || "Erro desconhecido";
+      onShowAlert(`Erro ao enviar o chamado de suporte: ${errorMessage}. Verifique se você está logado.`);
     } finally {
       setSending(false);
     }
