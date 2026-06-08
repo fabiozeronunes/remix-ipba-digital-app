@@ -24,10 +24,11 @@ interface LoginSectionProps {
   onLoginSuccess: (user: User) => void;
   onShowAlert: (msg: string) => void;
   dbUsers?: User[];
+  onAddUser?: (user: User) => void;
   onInstall?: () => void;
 }
 
-export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onInstall }: LoginSectionProps) {
+export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onAddUser, onInstall }: LoginSectionProps) {
   // Toggle screens: 'login', 'signup', 'forgot'
   const [view, setView] = useState<'login' | 'signup' | 'forgot'>('login');
 
@@ -414,6 +415,7 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
 
       // Sign in automatically
       onLoginSuccess(newUser);
+      if (onAddUser) onAddUser(newUser);
       onShowAlert(`Cadastro de membro realizado com sucesso! Bem-vindo(a), ${newUser.name}.`);
 
       // Reset fields

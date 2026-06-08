@@ -499,6 +499,10 @@ export default function App() {
 
   const prayersInitialSync = useRef(true);
   const eventsInitialSync = useRef(true);
+  const cellsInitialSync = useRef(true);
+  const studiesInitialSync = useRef(true);
+  const transmissionsInitialSync = useRef(true);
+
   const getInitialDeletedEventIds = (): Set<string> => {
     try {
       const stored = localStorage.getItem('church_deleted_event_ids');
@@ -568,6 +572,18 @@ export default function App() {
     console.log("[Sync] Iniciando ouvinte global: Cells");
     const unsubscribe = onSnapshot(collection(db, 'cells'), (snapshot) => {
       const list: Cell[] = [];
+      
+      if (!cellsInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as Cell;
+            triggerPhoneNotification('cell', '🏘️ Nova Célula!', `Nova célula: ${data.title}`);
+            addAppNotification('cell', '🏘️ Nova Célula!', `Nova célula: ${data.title}`, 'celulas');
+          }
+        });
+      }
+      cellsInitialSync.current = false;
+
       snapshot.forEach((snapDoc) => {
         if (snapDoc.id !== 'system_seeded_state') {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as Cell);
@@ -643,6 +659,16 @@ export default function App() {
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const list: ChurchEvent[] = [];
 
+      // Detecção de novos eventos para notificações
+      if (!eventsInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as ChurchEvent;
+            triggerPhoneNotification('event', '🗓️ Novo Evento!', `Novo evento disponível: ${data.title}`);
+          }
+        });
+      }
+
       eventsInitialSync.current = false;
 
       snapshot.forEach((snapDoc) => {
@@ -677,7 +703,6 @@ export default function App() {
         console.warn("Erro ao salvar cache local de eventos:", e);
       }
       setEvents(list);
-      eventsInitialSync.current = false;
     }, (error) => {
       console.warn("Firestore Events fetch failed:", error);
     });
@@ -690,6 +715,18 @@ export default function App() {
     console.log("[Sync] Iniciando ouvinte global: Studies");
     const unsubscribe = onSnapshot(collection(db, 'studies'), (snapshot) => {
       const list: ChurchStudy[] = [];
+      
+      if (!studiesInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as ChurchStudy;
+            triggerPhoneNotification('study', '📖 Novo Estudo!', `Novo estudo: ${data.title}`);
+            addAppNotification('study', '📖 Novo Estudo!', `Novo estudo: ${data.title}`, 'estudos');
+          }
+        });
+      }
+      studiesInitialSync.current = false;
+      
       snapshot.forEach((snapDoc) => {
         if (snapDoc.id !== 'system_seeded_state') {
           list.push({ id: snapDoc.id, ...snapDoc.data() } as ChurchStudy);
@@ -728,6 +765,18 @@ export default function App() {
     console.log("[Sync] Iniciando ouvinte global: Transmissions");
     const unsubscribe = onSnapshot(collection(db, 'transmissions'), (snapshot) => {
       const list: any[] = [];
+      
+      if (!transmissionsInitialSync.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            triggerPhoneNotification('transmission', '📡 Nova Transmissão!', `Confira: ${data.title}`);
+             addAppNotification('transmission', '📡 Nova Transmissão!', `Confira: ${data.title}`, 'aovivo');
+          }
+        });
+      }
+      transmissionsInitialSync.current = false;
+
       snapshot.forEach((snapDoc) => {
         list.push({ id: snapDoc.id, ...snapDoc.data() });
       });
@@ -898,10 +947,9 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
-  // Sync Users from Firestore (Bypassed: user list is now fully local-session managed)
+  // Sync Users from Firestore
   useEffect(() => {
     if (!isAuthReady) return;
-    return; // Users are strictly managed locally via localStorage and sessions
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       if (snapshot.empty) {
         const batch = writeBatch(db);
@@ -1001,8 +1049,6 @@ export default function App() {
             }
           }
         });
-
-        // Realtime notification detection logic based on docChanges removed to adhere to allowed categories only (new cells, prayer requests, events, studies, and transmissions)
 
         // Smart Merge of Local Users and Firestore Users (Run at most once per session to avoid infinite snapshot write-back loops)
         let localUsers: User[] = [];
@@ -2233,6 +2279,7 @@ export default function App() {
             onLoginSuccess={handleLoginSuccess}
             onShowAlert={showAlert}
             dbUsers={dbUsers}
+            onAddUser={(user) => setDbUsers(prev => [...prev, user])}
             onInstall={handleInstallClick}
           />
         )}

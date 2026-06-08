@@ -14,6 +14,7 @@ export interface User {
   password?: string;
   status?: 'Ativo' | 'Pendente' | 'Suspenso';
   updatedAt?: string;
+  notificationPreferences?: Record<string, boolean>;
 }
 
 export interface PrayerRequest {
