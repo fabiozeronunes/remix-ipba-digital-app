@@ -416,9 +416,6 @@ export default function AdminSection({
           updatedAt: new Date().toISOString()
         };
 
-        const docId = getUserDocId(cleanEmail);
-        await setDoc(doc(db, 'users', docId), updatedUser, { merge: true });
-
         // Instantly update local state in AdminSection
         setDbUsers(prev => {
           return prev.map(u => {
@@ -502,27 +499,22 @@ export default function AdminSection({
       await setDoc(doc(db, 'customRoles', newDocId), { name: clean });
     } catch (err) {}
     
-    // Also update all users with this role to the new role name in Firestore (supporting comma-separated list of cargos)
+    // Also update all users with this role to the new role name (supporting comma-separated list of cargos)
     const updatedUsers = dbUsers.map(u => {
       if (!u.category) return u;
       const roles = u.category.split(',').map(c => c.trim()).filter(Boolean);
       if (roles.includes(oldName)) {
         const nextRoles = roles.map(r => r === oldName ? clean : r);
-        return { ...u, category: nextRoles.sort().join(', ') };
+        const nextU = { ...u, category: nextRoles.sort().join(', ') };
+        if (u.email && onUpdateUser) {
+          onUpdateUser(nextU, u.email);
+        }
+        return nextU;
       }
       return u;
     });
-    
-    updatedUsers.forEach(async (u) => {
-      // Find if this specific user was modified
-      const originalUser = dbUsers.find(x => x.email?.toLowerCase() === u.email?.toLowerCase());
-      if (originalUser && originalUser.category !== u.category && u.email) {
-        try {
-          const docId = getUserDocId(u.email);
-          await setDoc(doc(db, 'users', docId), u, { merge: true });
-        } catch (err) {}
-      }
-    });
+
+    setDbUsers(updatedUsers);
     onShowAlert(`Cargo alterado para "${clean}" e todos os membros com este cargo foram atualizados.`);
   };
 
@@ -552,9 +544,6 @@ export default function AdminSection({
   // --- Dynamic Members Moderation and Approval Methods ---
   const handleApproveMember = async (email: string) => {
     try {
-      const docId = getUserDocId(email);
-      await setDoc(doc(db, 'users', docId), { status: 'Ativo', updatedAt: new Date().toISOString() }, { merge: true });
-      
       // Update local state immediately for instant feedback
       setDbUsers(prev => prev.map(u => {
         if ((u.email || '').trim().toLowerCase() === email.trim().toLowerCase()) {
@@ -578,9 +567,6 @@ export default function AdminSection({
 
   const handleSuspendMember = async (email: string) => {
     try {
-      const docId = getUserDocId(email);
-      await setDoc(doc(db, 'users', docId), { status: 'Suspenso', updatedAt: new Date().toISOString() }, { merge: true });
-      
       // Update local state immediately for instant feedback
       setDbUsers(prev => prev.map(u => {
         if ((u.email || '').trim().toLowerCase() === email.trim().toLowerCase()) {
@@ -608,10 +594,6 @@ export default function AdminSection({
       return;
     }
     try {
-      const matched = dbUsers.find(u => (u.email || '').trim().toLowerCase() === email.trim().toLowerCase());
-      const docId = (matched && matched.id) ? matched.id : getUserDocId(email);
-      await deleteDoc(doc(db, 'users', docId));
-
       if (onDeleteUser) {
         onDeleteUser(email);
       }
@@ -680,17 +662,6 @@ export default function AdminSection({
     }
 
     try {
-      const oldDocId = getUserDocId(oldEmail);
-      const newDocId = getUserDocId(newEmail);
-
-      // If email has changed, delete the old document in Firestore
-      if (oldDocId !== newDocId) {
-        await deleteDoc(doc(db, 'users', oldDocId));
-      }
-
-      // Write/Merge the new payload
-      await setDoc(doc(db, 'users', newDocId), updatedUserPayload, { merge: true });
-
       // Clean/update local storage 'church_users' immediately to prevent any synchronization races
       const rawLocal = localStorage.getItem('church_users');
       if (rawLocal) {
@@ -791,9 +762,6 @@ export default function AdminSection({
     };
 
     try {
-      const docId = getUserDocId(cleanEmail);
-      await setDoc(doc(db, 'users', docId), newUserPayload);
-
       // Clean/update local storage 'church_users' immediately to prevent any synchronization races
       const rawLocal = localStorage.getItem('church_users');
       if (rawLocal) {
@@ -2917,27 +2885,7 @@ export default function AdminSection({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 mt-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingMember(mbr);
-                            setNewMemberName(mbr.name || '');
-                            setNewMemberEmail(mbr.email || '');
-                            setNewMemberPhone(mbr.phone || '');
-                            setNewMemberCategory(mbr.category || 'Membro Comungante');
-                            setNewMemberMinistry(mbr.ministry || '');
-                            setNewMemberBirthDate(mbr.birthDate || '');
-                            setNewMemberAddress(mbr.address || '');
-                            setNewMemberStatus(mbr.status as any || 'Ativo');
-                            setNewMemberAvatarUrl(mbr.avatarUrl || '');
-                            setShowAddMemberForm(true);
-                          }}
-                          className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-lg text-[10px] hover:bg-indigo-100 cursor-pointer shadow-xs transition-all uppercase tracking-wide w-full"
-                        >
-                          Editar Perfil ✏️
-                        </button>
-                        
+                      <div className="flex sm:flex-wrap items-center gap-2 mt-3">
                         <button
                           type="button"
                           onClick={() => {

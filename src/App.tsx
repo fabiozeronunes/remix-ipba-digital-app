@@ -15,7 +15,6 @@ import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import HomeLiveSection from './components/HomeLiveSection';
 import CelulasSection from './components/CelulasSection';
-import PerfilSection from './components/PerfilSection';
 import LoginSection from './components/LoginSection';
 import OracaoSection from './components/OracaoSection';
 import DizimosSection from './components/DizimosSection';
@@ -57,7 +56,7 @@ interface AppNotification {
   text: string;
   time: string;
   unread: boolean;
-  type?: 'home' | 'celulas' | 'perfil' | 'login' | 'oracao' | 'dizimos' | 'estudos' | 'aovivo' | 'eventos' | 'admin';
+  type?: 'home' | 'celulas' | 'login' | 'oracao' | 'dizimos' | 'estudos' | 'aovivo' | 'eventos' | 'admin';
 }
 
 const DEFAULT_TRANSMISSIONS = [
@@ -137,12 +136,35 @@ export default function App() {
     const rawLocal = localStorage.getItem('church_users');
     if (rawLocal) {
       try {
-        return JSON.parse(rawLocal);
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       } catch (e) {
         console.warn("Error parsing initial local church_users:", e);
       }
     }
-    return [];
+    const defaultUsers = [
+      {
+        name: 'Fabio Nunes',
+        email: 'fabiozeronunes@gmail.com',
+        phone: '(11) 99999-7777',
+        password: '1q2w3e4r',
+        category: 'Coordenador / Admin ( Total )',
+        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFzVPt8R12b6r0cJenxhGMSaRCVhnj5m2I1L63zIXLkZLH0Irma2hv_P5qK-GMNH3b3kCM43ZW9Q4PH9K2SiHy7-ODE2cNb2t8A_zr-BxvnChqsgjZT1LXBuf2HL7pp1fSDQrGvEk4mrCFhimqMvSUYOfz3wbz8iN8rRH9nRmA9gRdo6n7D4xRFLdEgI2ndKUZKvYauk-Nvw84QWoH51RjXus-LV6oWVbwI4n3EBJX3_zjwxm5Rnn2tM0Qd7UVF_wjMD9kxH-nvnE',
+        planCount: 4,
+        prayerCount: 2,
+        eventCount: 1,
+        ministry: 'Liderança',
+        address: 'Bairro Centro',
+        birthDate: '1985-08-20',
+        status: 'Ativo'
+      }
+    ];
+    try {
+      localStorage.setItem('church_users', JSON.stringify(defaultUsers));
+    } catch (err) {}
+    return defaultUsers;
   });
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -272,7 +294,7 @@ export default function App() {
     if (!isAuthReady) return;
     
     // Lista de abas consideradas seções online do portal
-    const onlineTabs = ['home', 'eventos', 'celulas', 'oracao', 'estudos', 'aovivo', 'admin', 'dizimos', 'perfil'];
+    const onlineTabs = ['home', 'eventos', 'celulas', 'oracao', 'estudos', 'aovivo', 'admin', 'dizimos'];
     if (onlineTabs.includes(currentTab)) {
       console.log(`[SWR/LWW Trigger] Usuário acessou a seção online: "${currentTab}". Forçando sincronização imediata dos eventos.`);
       forceEventsSyncFromServer();
@@ -875,9 +897,10 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
-  // Sync Users from Firestore
+  // Sync Users from Firestore (Bypassed: user list is now fully local-session managed)
   useEffect(() => {
     if (!isAuthReady) return;
+    return; // Users are strictly managed locally via localStorage and sessions
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       if (snapshot.empty) {
         const batch = writeBatch(db);
@@ -1385,59 +1408,28 @@ export default function App() {
 
   const handleAdminLogin = async () => {
     const adminEmail = 'fabiozeronunes@gmail.com';
-    const docId = getUserDocId(adminEmail);
-    let adminUser: User | null = null;
+    let adminUser: User | null = dbUsers.find(u => u.email?.trim().toLowerCase() === adminEmail) || null;
     
-    // Dynamically synchronize the administrative user credentials with Firebase Auth
-    try {
-      await syncFirebaseAuthWithEmailPassword(adminEmail, '1q2w3e4r');
-    } catch (authErr) {
-      console.warn("Could not sync admin to Firebase Auth directly:", authErr);
-    }
-    
-    try {
-      const snap = await getDoc(doc(db, 'users', docId));
-      if (snap.exists()) {
-        adminUser = snap.data() as User;
-        adminUser.name = 'Fabio Nunes';
-        adminUser.category = 'Coordenador / Admin ( Total )';
-        // Ensure defaults if fields are empty
-        if (adminUser.status === undefined) adminUser.status = 'Ativo';
-        if (adminUser.ministry === undefined) adminUser.ministry = 'Liderança';
-        await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
-        console.log("Admin loaded successfully directly from Firestore online:", adminUser);
-      }
-    } catch (e) {
-      console.warn("Error getting admin from Firestore directly on login:", e);
-    }
-
     if (!adminUser) {
-      // Fallback: check within dbUsers or generate defaults
-      adminUser = dbUsers.find(u => u.email?.trim().toLowerCase() === adminEmail) || null;
-      
-      if (!adminUser) {
-        adminUser = {
-          name: 'Fabio Nunes',
-          email: adminEmail,
-          phone: '(11) 99999-7777',
-          password: '1q2w3e4r',
-          category: 'Coordenador / Admin ( Total )',
-          avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFzVPt8R12b6r0cJenxhGMSaRCVhnj5m2I1L63zIXLkZLH0Irma2hv_P5qK-GMNH3b3kCM43ZW9Q4PH9K2SiHy7-ODE2cNb2t8A_zr-BxvnChqsgjZT1LXBuf2HL7pp1fSDQrGvEk4mrCFhimqMvSUYOfz3wbz8iN8rRH9nRmA9gRdo6n7D4xRFLdEgI2ndKUZKvYauk-Nvw84QWoH51RjXus-LV6oWVbwI4n3EBJX3_zjwxm5Rnn2tM0Qd7UVF_wjMD9kxH-nvnE',
-          planCount: 4,
-          prayerCount: 2,
-          eventCount: 1,
-          ministry: 'Liderança',
-          address: 'Bairro Centro',
-          birthDate: '1985-08-20',
-          status: 'Ativo',
-          updatedAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'users', docId), adminUser);
-      } else {
-        adminUser.name = 'Fabio Nunes';
-        adminUser.category = 'Coordenador / Admin ( Total )';
-        await setDoc(doc(db, 'users', docId), adminUser, { merge: true });
-      }
+      adminUser = {
+        name: 'Fabio Nunes',
+        email: adminEmail,
+        phone: '(11) 99999-7777',
+        password: '1q2w3e4r',
+        category: 'Coordenador / Admin ( Total )',
+        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFzVPt8R12b6r0cJenxhGMSaRCVhnj5m2I1L63zIXLkZLH0Irma2hv_P5qK-GMNH3b3kCM43ZW9Q4PH9K2SiHy7-ODE2cNb2t8A_zr-BxvnChqsgjZT1LXBuf2HL7pp1fSDQrGvEk4mrCFhimqMvSUYOfz3wbz8iN8rRH9nRmA9gRdo6n7D4xRFLdEgI2ndKUZKvYauk-Nvw84QWoH51RjXus-LV6oWVbwI4n3EBJX3_zjwxm5Rnn2tM0Qd7UVF_wjMD9kxH-nvnE',
+        planCount: 4,
+        prayerCount: 2,
+        eventCount: 1,
+        ministry: 'Liderança',
+        address: 'Bairro Centro',
+        birthDate: '1985-08-20',
+        status: 'Ativo',
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      adminUser.name = 'Fabio Nunes';
+      adminUser.category = 'Coordenador / Admin ( Total )';
     }
     
     handleLoginSuccess(adminUser);
@@ -1478,28 +1470,6 @@ export default function App() {
         localStorage.setItem('church_users', JSON.stringify(nextUsers));
         return nextUsers;
       });
-
-      // 3. Persist to Firestore while cleanly removing undefined properties
-      const docId = getUserDocId(emailToFind);
-      const cleanUpdate: Record<string, any> = {};
-      Object.entries(updatedUser).forEach(([key, val]) => {
-        if (val !== undefined) {
-          cleanUpdate[key] = val;
-        }
-      });
-
-      setDoc(doc(db, 'users', docId), {
-        ...cleanUpdate,
-        updatedAt: isoString
-      }, { merge: true })
-        .then(() => {
-          console.log("Successfully synchronized user profile in Firestore online.");
-        })
-        .catch(err => {
-          console.error("Error updating user in Firestore:", err);
-          showAlert("Aviso: Não foi possível sincronizar o perfil com o servidor online (Permissão negada ou Sem conexão). O perfil continuará salvo localmente no dispositivo.");
-          handleFirestoreError(err, OperationType.UPDATE, `users/${docId}`);
-        });
     }
   };
 
@@ -2071,6 +2041,7 @@ export default function App() {
         onInstall={handleInstallClick}
         onToggleNotifications={() => setShowNotificationsList(!showNotificationsList)}
         unreadCount={notifications.filter(n => n.unread).length}
+        onLogout={handleLogout}
       />
 
       {/* Soft PWA Installation Prompt Banner */}
@@ -2202,31 +2173,6 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'perfil' && (
-          user ? (
-            <PerfilSection 
-              user={user} 
-              onLogout={handleLogout}
-              onNavigate={handleNavigate}
-              userPrayersCount={activePrayersCount}
-              userEventsCount={activeGoingCount}
-              userContributionsCount={contributions.length}
-              onShowAlert={showAlert}
-              onUpdateUser={handleUpdateUser}
-              prayers={prayers}
-              onDeletePrayer={handleDeletePrayer}
-              onAdminLogin={handleAdminLogin}
-              cargos={cargos}
-            />
-          ) : (
-            <LoginSection 
-              onLoginSuccess={handleLoginSuccess}
-              onShowAlert={showAlert}
-              dbUsers={dbUsers}
-              onInstall={handleInstallClick}
-            />
-          )
-        )}
 
         {currentTab === 'login' && (
           <LoginSection 

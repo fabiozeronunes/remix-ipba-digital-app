@@ -1,4 +1,4 @@
-import { Bell, User } from 'lucide-react';
+import { Bell, User, LogOut } from 'lucide-react';
 import { User as UserType } from '../types';
 
 interface HeaderProps {
@@ -8,6 +8,7 @@ interface HeaderProps {
   onInstall: () => void;
   onToggleNotifications: () => void;
   unreadCount: number;
+  onLogout: () => void;
 }
 
 export default function Header({ 
@@ -16,7 +17,8 @@ export default function Header({
   deferredPrompt, 
   onInstall, 
   onToggleNotifications, 
-  unreadCount 
+  unreadCount,
+  onLogout
 }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 w-full z-50 backdrop-blur-lg flex justify-between items-center px-6 py-4 shadow-md bg-[#002D5E] text-white">
@@ -50,18 +52,28 @@ export default function Header({
         )}
         {/* User Session Portal */}
         {user ? (
-          <button 
-            onClick={() => onNavigate('perfil')}
-            className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full font-semibold text-xs md:text-sm hover:bg-white/20 transition-all active:scale-95 bg-white/10 text-white cursor-pointer"
-          >
-            <img 
-              src={user.avatarUrl} 
-              alt={user.name} 
-              className="w-5 h-5 rounded-full object-cover border border-white/40" 
-            />
-            <span className="hidden md:inline">{user.name}</span>
-            <span className="md:hidden">Painel</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full font-semibold text-xs md:text-sm bg-white/10 text-white cursor-default">
+              <img 
+                src={user.avatarUrl} 
+                alt={user.name} 
+                className="w-5 h-5 rounded-full object-cover border border-white/40" 
+              />
+              <span className="hidden md:inline">{user.name}</span>
+              <span className="md:hidden">Logado</span>
+            </div>
+            <button
+              onClick={() => {
+                if (window.confirm("Deseja realmente sair do aplicativo?")) {
+                  onLogout();
+                }
+              }}
+              className="p-2.5 bg-red-500/10 hover:bg-red-600 hover:text-white text-red-300 rounded-full transition-all active:scale-90 cursor-pointer flex items-center justify-center border border-red-500/20"
+              title="Sair da Conta"
+            >
+              <LogOut className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+            </button>
+          </div>
         ) : (
           <button 
             onClick={() => onNavigate('login')}

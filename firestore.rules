@@ -21,21 +21,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasEmail() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
-             (
-               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Pastor.*') || 
-               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Presb.*') || 
-               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Admin.*') || 
-               get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.category.matches('.*Coordenador.*')
-             );
-    }
-
-    // USERS
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      return hasEmail() && request.auth.token.email.lower() == 'fabiozeronunes@gmail.com';
     }
 
     // PRAYERS

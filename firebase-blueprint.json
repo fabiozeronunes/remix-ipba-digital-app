@@ -1,27 +1,5 @@
 {
   "entities": {
-    "User": {
-      "title": "User",
-      "description": "Represents a member of the church.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "phone": { "type": "string" },
-        "category": { "type": "string" },
-        "avatarUrl": { "type": "string" },
-        "planCount": { "type": "number" },
-        "prayerCount": { "type": "number" },
-        "eventCount": { "type": "number" },
-        "birthDate": { "type": "string" },
-        "address": { "type": "string" },
-        "ministry": { "type": "string" },
-        "password": { "type": "string" },
-        "status": { "type": "string", "enum": ["Ativo", "Pendente", "Suspenso"] },
-        "updatedAt": { "type": "string" }
-      },
-      "required": ["name", "email"]
-    },
     "PrayerRequest": {
       "title": "PrayerRequest",
       "description": "Represents a prayer request made by a church member.",
@@ -201,10 +179,6 @@
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "User",
-      "description": "User profiles within IPBA Digital."
-    },
     "/prayers/{prayerId}": {
       "schema": "PrayerRequest",
       "description": "Intercessions and prayer requests."

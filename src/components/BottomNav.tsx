@@ -32,7 +32,6 @@ export default function BottomNav({
   const tabs = [
     { id: 'login', label: 'Login', icon: LogIn },
     ...(isAdmin ? [{ id: 'admin', label: 'Painel Admin', icon: ShieldAlert }] : []),
-    { id: 'perfil', label: 'Perfil', icon: User },
     { id: 'home', label: 'Home', icon: Home },
     ...[
       { id: 'aovivo', label: 'Ao Vivo', icon: Video },
