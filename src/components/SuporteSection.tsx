@@ -119,8 +119,8 @@ export default function SuporteSection({ user, onShowAlert, isAuthReady = true }
       };
 
       console.log("[Support] Submitting ticket for:", user?.email);
-      const docRef = await addDoc(collection(db, 'supportTickets'), payload);
-      await setDoc(doc(db, 'supportTickets', docRef.id), { ...payload, id: docRef.id });
+      const docRef = doc(collection(db, 'supportTickets'));
+      await setDoc(docRef, { ...payload, id: docRef.id });
       onShowAlert("Chamado de suporte enviado com sucesso!");
       setTexto('');
     } catch (err: any) {
