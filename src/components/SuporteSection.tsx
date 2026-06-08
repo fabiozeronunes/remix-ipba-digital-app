@@ -118,9 +118,18 @@ export default function SuporteSection({ user, onShowAlert, isAuthReady = true }
         status: 'Pendente'
       };
 
-      const id = `st-${Date.now()}`;
-      console.log("[Support] Submitting ticket with ID:", id, "for:", user?.email);
-      await setDoc(doc(db, 'supportTickets', id), { ...payload, id });
+      const payload = {
+        name: nome.trim(),
+        email: user?.email || '',
+        category: currentOpt,
+        text: texto.trim(),
+        createdAt: new Date().toISOString(),
+        status: 'Pendente'
+      };
+
+      console.log("[Support] Submitting ticket for:", user?.email);
+      const docRef = await addDoc(collection(db, 'supportTickets'), payload);
+      await setDoc(doc(db, 'supportTickets', docRef.id), { ...payload, id: docRef.id });
       onShowAlert("Chamado de suporte enviado com sucesso!");
       setTexto('');
     } catch (err: any) {
