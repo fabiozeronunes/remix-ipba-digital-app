@@ -875,14 +875,13 @@ export default function App() {
       const list: AppNotification[] = [];
       const readIds = getReadNotificationIds();
       const deletedIds = getDeletedNotificationIds();
-
+      
       const newItemsToTrigger: AppNotification[] = [];
 
       snapshot.forEach((snapDoc) => {
         const data = snapDoc.data();
         const id = snapDoc.id;
         
-        // Skip deleted notifications
         if (deletedIds.includes(id)) {
           return;
         }
@@ -907,56 +906,25 @@ export default function App() {
 
         list.push(notifItem);
 
-      // Detecção de novos itens para notificações
-      const newNotifs: AppNotification[] = [];
-      const readIds = getReadNotificationIds();
-      const deletedIds = getDeletedNotificationIds();
-
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const data = change.doc.data();
-          const id = change.doc.id;
-          
-          if (!deletedIds.includes(id)) {
-            let typeStr: any = data.type || data.targetTab || 'home';
-            if (typeStr === 'event') typeStr = 'eventos';
-            if (typeStr === 'prayer') typeStr = 'oracao';
-            if (typeStr === 'study') typeStr = 'estudos';
-            if (typeStr === 'live') typeStr = 'home';
-            if (typeStr === 'cell') typeStr = 'celulas';
-
-            const isUnread = !readIds.includes(id);
-
-            const notifItem: AppNotification = {
-              id: id,
-              title: data.title || '',
-              text: data.message || data.text || '',
-              time: data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : 'Agora mesmo',
-              unread: isUnread,
-              type: typeStr
-            };
-            
-            newNotifs.push(notifItem);
-            
-            if (!notificationsInitialSync.current && isUnread) {
-              newItemsToTrigger.push(notifItem);
-            }
-          }
+        // Detect new items
+        if (!notificationsInitialSync.current && isUnread && !seenNotifIds.current.has(id)) {
+          newItemsToTrigger.push(notifItem);
         }
+        seenNotifIds.current.add(id);
       });
+      
       notificationsInitialSync.current = false;
       
-      setNotifications(newNotifs);
+      setNotifications(list);
 
-      // Trigger alerts/chimes for truly new notifications received in real-time
+      // Trigger alerts/chimes for truly new notifications
       newItemsToTrigger.forEach(item => {
-        // Map types correctly
         let triggerType: any = item.type;
         if (triggerType === 'eventos') triggerType = 'event';
-        if (triggerType === 'oracao') triggerType = 'prayer';
-        if (triggerType === 'celulas') triggerType = 'cell';
-        if (triggerType === 'estudos') triggerType = 'study';
-        if (triggerType === 'home') triggerType = 'live';
+        else if (triggerType === 'oracao') triggerType = 'prayer';
+        else if (triggerType === 'celulas') triggerType = 'cell';
+        else if (triggerType === 'estudos') triggerType = 'study';
+        else if (triggerType === 'home') triggerType = 'live';
 
         triggerPhoneNotification(triggerType, item.title, item.text);
       });
