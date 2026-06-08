@@ -118,15 +118,6 @@ export default function SuporteSection({ user, onShowAlert, isAuthReady = true }
         status: 'Pendente'
       };
 
-      const payload = {
-        name: nome.trim(),
-        email: user?.email || '',
-        category: currentOpt,
-        text: texto.trim(),
-        createdAt: new Date().toISOString(),
-        status: 'Pendente'
-      };
-
       console.log("[Support] Submitting ticket for:", user?.email);
       const docRef = await addDoc(collection(db, 'supportTickets'), payload);
       await setDoc(doc(db, 'supportTickets', docRef.id), { ...payload, id: docRef.id });
