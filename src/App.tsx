@@ -171,6 +171,7 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const userRef = useRef<User | null>(user);
   const eventsRef = useRef<ChurchEvent[]>(events);
+  const hasMergedLocalUsersRef = useRef(false);
 
   useEffect(() => {
     userRef.current = user;
@@ -979,14 +980,16 @@ export default function App() {
 
         // Realtime notification detection logic based on docChanges removed to adhere to allowed categories only (new cells, prayer requests, events, studies, and transmissions)
 
-        // Smart Merge of Local Users and Firestore Users
+        // Smart Merge of Local Users and Firestore Users (Run at most once per session to avoid infinite snapshot write-back loops)
         let localUsers: User[] = [];
-        const rawLocal = localStorage.getItem('church_users');
-        if (rawLocal) {
-          try {
-            localUsers = JSON.parse(rawLocal);
-          } catch (e) {
-            console.warn("Error parsing local church_users:", e);
+        if (!hasMergedLocalUsersRef.current) {
+          const rawLocal = localStorage.getItem('church_users');
+          if (rawLocal) {
+            try {
+              localUsers = JSON.parse(rawLocal);
+            } catch (e) {
+              console.warn("Error parsing local church_users:", e);
+            }
           }
         }
 
@@ -994,7 +997,7 @@ export default function App() {
         let hasChanges = false;
         const batch = writeBatch(db);
 
-        if (Array.isArray(localUsers) && localUsers.length > 0) {
+        if (!hasMergedLocalUsersRef.current && Array.isArray(localUsers) && localUsers.length > 0) {
           localUsers.forEach((localU) => {
             if (!localU.email) return;
             const normLocal = localU.email.trim().toLowerCase();
@@ -1038,6 +1041,7 @@ export default function App() {
               }
             }
           });
+          hasMergedLocalUsersRef.current = true;
         }
 
         const finalDeduplicatedList: User[] = [];

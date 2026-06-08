@@ -262,10 +262,11 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
           const foundLocal = localList.find(u => u.email?.trim().toLowerCase() === cleanEmail);
           if (foundLocal) {
             matchedUser = foundLocal;
-            // Upload to Firestore to sync online instantly
+            // Upload to Firestore to sync online instantly (without blocking UI)
             const docId = getUserDocId(foundLocal.email || '');
-            await setDoc(doc(db, 'users', docId), foundLocal, { merge: true });
-            console.log("Membro local sincronizado com sucesso no Firestore online durante o login.");
+            setDoc(doc(db, 'users', docId), foundLocal, { merge: true })
+              .then(() => console.log("Membro local sincronizado com sucesso no Firestore online durante o login."))
+              .catch(err => console.warn("Erro ao carregar usuário backup pro Firestore:", err));
           }
         } catch (err) {
           console.warn("Erro ao buscar usuário no backup local:", err);
@@ -299,13 +300,15 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
       matchedUser.password = cleanPassword;
       userPassword = cleanPassword;
       const docId = getUserDocId(matchedUser.email || '');
-      await setDoc(doc(db, 'users', docId), matchedUser, { merge: true });
-      console.log("Senha auto-definida no Firestore online para conta existente sem senha.");
+      setDoc(doc(db, 'users', docId), matchedUser, { merge: true })
+        .then(() => console.log("Senha auto-definida no Firestore online para conta existente sem senha."))
+        .catch(err => console.warn("Erro ao definir senha no Firestore:", err));
     } else if (forcedSelfHeal && matchedUser.password !== userPassword) {
       matchedUser.password = userPassword;
       const docId = getUserDocId(matchedUser.email || '');
-      await setDoc(doc(db, 'users', docId), matchedUser, { merge: true });
-      console.log("Senha recuperada/reparada no Firestore para a credencial default.");
+      setDoc(doc(db, 'users', docId), matchedUser, { merge: true })
+        .then(() => console.log("Senha recuperada/reparada no Firestore para a credencial default."))
+        .catch(err => console.warn("Erro ao recuperar senha no Firestore:", err));
     }
 
     if (cleanPassword !== userPassword) {
@@ -319,8 +322,9 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
             matchedUser.password = cleanPassword;
             userPassword = cleanPassword;
             const docId = getUserDocId(matchedUser.email || '');
-            await setDoc(doc(db, 'users', docId), matchedUser, { merge: true });
-            console.log("Senha local sincronizada no Firestore online com sucesso durante o login.");
+            setDoc(doc(db, 'users', docId), matchedUser, { merge: true })
+              .then(() => console.log("Senha local sincronizada no Firestore online com sucesso durante o login."))
+              .catch(err => console.warn("Erro ao sincronizar senha local no Firestore:", err));
           }
         } catch (err) {
           console.warn("Erro na recuperação de senha local:", err);
@@ -334,12 +338,10 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
       return;
     }
 
-    // Sincroniza as credenciais em segundo plano com o Firebase Auth
-    try {
-      await syncFirebaseAuthWithEmailPassword(cleanEmail, cleanPassword);
-    } catch (authSyncError) {
-      console.warn("Plano de autenticação por e-mail secundário do Firebase falhou:", authSyncError);
-    }
+    // Sincroniza as credenciais em segundo plano com o Firebase Auth (sem await, instantâneo)
+    syncFirebaseAuthWithEmailPassword(cleanEmail, cleanPassword)
+      .then((success) => console.log("[Login Sync] Sincronização em segundo plano concluída:", success))
+      .catch((authSyncError) => console.warn("[Login Sync] Plano secundário do Firebase falhou em segundo plano:", authSyncError));
 
     onLoginSuccess(matchedUser);
     onShowAlert(`Seja bem-vindo de volta, ${matchedUser.name}! Sessão iniciada.`);
@@ -391,12 +393,10 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onI
       const docId = getUserDocId(regEmail);
       await setDoc(doc(db, 'users', docId), newUser);
       
-      // Sincroniza as credenciais de novo cadastro com o Firebase Auth
-      try {
-        await syncFirebaseAuthWithEmailPassword(regEmail.trim(), regPassword);
-      } catch (authSyncError) {
-        console.warn("Auto-registro do Firebase Auth falhou:", authSyncError);
-      }
+      // Sincroniza as credenciais de novo cadastro com o Firebase Auth em segundo plano (sem await)
+      syncFirebaseAuthWithEmailPassword(regEmail.trim(), regPassword)
+        .then(() => console.log("[SignUp Sync] Sincronização em segundo plano concluída!"))
+        .catch((authSyncError) => console.warn("[SignUp Sync] Auto-registro do Firebase Auth falhou:", authSyncError));
 
       // Sign in automatically
       onLoginSuccess(newUser);

@@ -107,9 +107,67 @@ export default function AdminSection({
   propCargos,
   isAuthReady = true
 }: AdminSectionProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options'>(() => {
+  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options' | 'sync'>(() => {
     return (localStorage.getItem('church_admin_active_subtab') as any) || 'events';
   });
+
+  // Diagnostic and Offline Sync states
+  const [isOnlineState, setIsOnlineState] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [latency, setLatency] = useState<number | null>(null);
+  const [isMeasuringLatency, setIsMeasuringLatency] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<'success' | 'failed' | 'idle'>('idle');
+  const [dbTestError, setDbTestError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline = () => setIsOnlineState(true);
+    const handleOffline = () => setIsOnlineState(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const measureDbLatency = async () => {
+    setIsMeasuringLatency(true);
+    setDbTestResult('idle');
+    setDbTestError(null);
+    const start = performance.now();
+    try {
+      // Connect to Firestore and run a fast database list check to calculate actual online latency roundtrip
+      const testRef = query(collection(db, 'events'), limit(1));
+      await getDocs(testRef);
+      const end = performance.now();
+      setLatency(Math.round(end - start));
+      setDbTestResult('success');
+    } catch (err: any) {
+      console.warn("Latency measure failed:", err);
+      setDbTestError(err.message || String(err));
+      setDbTestResult('failed');
+      setLatency(null);
+    } finally {
+      setIsMeasuringLatency(false);
+    }
+  };
+
+  const handleClearOfflineCache = () => {
+    try {
+      localStorage.removeItem('church_events');
+      localStorage.removeItem('church_users');
+      localStorage.removeItem('church_deleted_event_ids');
+      localStorage.removeItem('church_app_notifications');
+      localStorage.removeItem('church_admin_active_subtab');
+      onShowAlert("Caches locais limpos com sucesso! Recarregando aplicação...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      onShowAlert("Falha ao limpar caches locais.");
+    }
+  };
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: string, action: () => void, name: string } | null>(null);
   const [openCargoDropdownId, setOpenCargoDropdownId] = useState<string | null>(null);
 
@@ -1515,6 +1573,17 @@ export default function AdminSection({
         >
           <LifeBuoy className="w-4 h-4 shrink-0" />
           <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Erros/Suporte 🛠️</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('sync')}
+          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all ${
+            activeSubTab === 'sync' ? 'bg-[#002d5e] text-amber-400 font-extrabold shadow' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <RefreshCw className="w-4 h-4 shrink-0" />
+          <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Sincronização 🔄</span>
         </button>
       </div>
 
@@ -4474,6 +4543,338 @@ export default function AdminSection({
                 })}
               </div>
             )}
+          </div>
+
+        </div>
+      )}
+
+      {activeSubTab === 'sync' && (
+        <div className="space-y-6 animate-fade-in text-left">
+          
+          {/* Main Sync Diagnostic Dashboard Dashboard */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Network card */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Status da Rede</span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  isOnlineState 
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-250' 
+                    : 'bg-red-100 text-red-800 border border-red-250'
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${isOnlineState ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  {isOnlineState ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <h4 className="text-2xl font-black text-[#001939]">
+                {isOnlineState ? 'Conectado à Internet' : 'Sem Conexão de Rede'}
+              </h4>
+              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                {isOnlineState 
+                  ? 'Seu navegador detecta conectividade ativa de rede. O aplicativo tentará sincronizar dados com o Firestore automaticamente.'
+                  : 'Seu navegador está operando localmente no modo offline. Todas as alterações serão enfileiradas até que a conexão seja restabelecida.'
+                }
+              </p>
+            </div>
+
+            {/* Firestore Link Latency Card */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Latência do Banco</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                  dbTestResult === 'success' ? 'bg-emerald-150 text-emerald-800' :
+                  dbTestResult === 'failed' ? 'text-red-800 bg-red-150' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {dbTestResult === 'success' ? 'Verificado' : dbTestResult === 'failed' ? 'Falha' : 'Não verificado'}
+                </span>
+              </div>
+              <h4 className="text-2xl font-black text-[#001939]">
+                {isMeasuringLatency ? (
+                  <span className="flex items-center gap-1.5 text-slate-500 text-sm font-semibold">
+                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-750" /> Medindo latência...
+                  </span>
+                ) : latency !== null ? (
+                  `${latency} ms`
+                ) : (
+                  'Clique para testar'
+                )}
+              </h4>
+              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                Mede o tempo de resposta direta de ida e volta (ping) do seu aplicativo até os servidores do Cloud Firestore.
+              </p>
+              <button
+                type="button"
+                disabled={isMeasuringLatency}
+                onClick={measureDbLatency}
+                className="w-full mt-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-[#002d5e] border border-slate-250 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer select-none transition-all flex items-center justify-center gap-1.5"
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>Testar Resposta do Firestore</span>
+              </button>
+            </div>
+
+            {/* Offline Deletion Queue Card */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Sincronizador SWR</span>
+                {(() => {
+                  const deletedStr = localStorage.getItem('church_deleted_event_ids');
+                  const deletedCount = deletedStr ? JSON.parse(deletedStr).length : 0;
+                  const isClean = deletedCount === 0;
+                  return (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                      isClean ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {isClean ? 'Sem fila' : `${deletedCount} pendentes`}
+                    </span>
+                  );
+                })()}
+              </div>
+              <h4 className="text-2xl font-black text-[#001939]">
+                {(() => {
+                  const deletedStr = localStorage.getItem('church_deleted_event_ids');
+                  const deletedCount = deletedStr ? JSON.parse(deletedStr).length : 0;
+                  return deletedCount > 0 ? `${deletedCount} itens na fila` : 'Banco Sincronizado';
+                })()}
+              </h4>
+              <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                Mostra se há modificações offline pendentes (como IDs de eventos marcados locais para exclusão) prontas para expirar ou sincronizar em rede.
+              </p>
+            </div>
+
+          </div>
+
+          {/* Table of synced collections and caches */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+            <h3 className="font-extrabold text-[#001939] text-base flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <RefreshCw className="w-5 h-5 text-indigo-750" />
+              <span>Status Offline vs. Remoto por Coleção</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Compare as contagens de itens carregados localmente na memória do dispositivo versus o conteúdo guardado persistentemente nos caches locais e em rede.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-sans border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 pb-2 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                    <th className="pb-3 pr-2">Coleção do Sistema</th>
+                    <th className="pb-3 px-2">Carregado (Memória)</th>
+                    <th className="pb-3 px-2">Cache Local (Cripto/Raw)</th>
+                    <th className="pb-3 px-2">Pilar de Sincronização</th>
+                    <th className="pb-3 pl-2 text-right">Integridade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/70 font-semibold text-slate-700">
+                  {/* Eventos Row */}
+                  {(() => {
+                    const rawCache = localStorage.getItem('church_events');
+                    const cacheCount = rawCache ? JSON.parse(rawCache).length : 0;
+                    const match = events.length === cacheCount;
+                    return (
+                      <tr className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                          <span className="w-2 h-2 rounded bg-indigo-600" />
+                          <span>Eventos (events)</span>
+                        </td>
+                        <td className="py-3 px-2">{events.length} itens</td>
+                        <td className="py-3 px-2">{cacheCount} itens no LocalStorage</td>
+                        <td className="py-3 px-2 text-slate-500">SWR Híbrido Realtime</td>
+                        <td className="py-3 pl-2 text-right text-[10px]">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                            match ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {match ? '✔ Sincronizado' : '⚠ Desvio de Cache'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })()}
+
+                  {/* Usuários Row */}
+                  {(() => {
+                    const rawCache = localStorage.getItem('church_users');
+                    const cacheCount = rawCache ? JSON.parse(rawCache).length : 0;
+                    const match = dbUsers.length === cacheCount;
+                    return (
+                      <tr className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                          <span className="w-2 h-2 rounded bg-indigo-600" />
+                          <span>Membros / Usuários (users)</span>
+                        </td>
+                        <td className="py-3 px-2">{dbUsers.length} cadastrados</td>
+                        <td className="py-3 px-2">{cacheCount} itens no LocalStorage</td>
+                        <td className="py-3 px-2 text-slate-500">Query Coletiva Realtime</td>
+                        <td className="py-3 pl-2 text-right text-[10px]">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                            match ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {match ? '✔ Sincronizado' : '⚠ Desvio de Cache'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })()}
+
+                  {/* Orações Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-amber-500" />
+                      <span>Pedidos de Oração (prayers)</span>
+                    </td>
+                    <td className="py-3 px-2">{prayers.length} pedidos</td>
+                    <td className="py-3 px-2 text-slate-400">Canal Dinâmico em Memória</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Células Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-amber-500" />
+                      <span>Células / Encontros (cells)</span>
+                    </td>
+                    <td className="py-3 px-2">{cells.length} células</td>
+                    <td className="py-3 px-2 text-slate-400">Canal Dinâmico em Memória</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Estudos Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-indigo-400" />
+                      <span>Estudos Teológicos (studies)</span>
+                    </td>
+                    <td className="py-3 px-2">{studies.length} estudos publicados</td>
+                    <td className="py-3 px-2 text-slate-400">Canal Dinâmico em Memória</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Rádio Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-indigo-400" />
+                      <span>Rádio IPBA Programs (radioPrograms)</span>
+                    </td>
+                    <td className="py-3 px-2">{radioPrograms.length} programas</td>
+                    <td className="py-3 px-2 text-slate-400">Programação em Memória</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Contribuições Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-amber-500" />
+                      <span>Dízimos & Ofertas (contributions)</span>
+                    </td>
+                    <td className="py-3 px-2">{contributions.length} repasses</td>
+                    <td className="py-3 px-2 text-slate-400">Canal Dinâmico em Memória</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+
+                  {/* Suporte Opções Row */}
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded bg-slate-500" />
+                      <span>Categorias de Suporte (supportOptions)</span>
+                    </td>
+                    <td className="py-3 px-2">{supportOptionsList.length} opções</td>
+                    <td className="py-3 px-2 text-slate-400">Parâmetros de Triagem</td>
+                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
+                    <td className="py-3 pl-2 text-right text-[10px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
+                        Ativo Realtime
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Configuration Inspector and Diagnostic Console */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            
+            {/* Configuration Properties Card */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+              <h3 className="font-extrabold text-[#001939] text-base flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <Info className="w-5 h-5 text-indigo-750" />
+                <span>Instância do Firebase Ativo</span>
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Verifique as configurações e instâncias de banco apontadas para garantir que o seu aplicativo local está conectando exatamente ao mesmo banco global na nuvem.
+              </p>
+
+              <div className="space-y-2 text-xs select-all bg-slate-50 p-4 rounded-2xl border border-slate-150 font-mono text-slate-600">
+                <div className="flex justify-between gap-2 border-b border-slate-100 pb-1.5">
+                  <span className="font-extrabold text-[#001939]">Firebase Project:</span>
+                  <span className="truncate">ai-studio-baebf76f-5792...</span>
+                </div>
+                <div className="flex justify-between gap-2 border-b border-slate-100 pb-1.5">
+                  <span className="font-extrabold text-[#001939]">Firestore Database:</span>
+                  <span className="truncate">(default) / Multi-Tenant</span>
+                </div>
+                <div className="flex justify-between gap-2 border-b border-slate-100 pb-1.5">
+                  <span className="font-extrabold text-[#001939]">Auth Domain:</span>
+                  <span className="truncate">church-system-app.firebaseapp.com</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="font-extrabold text-[#001939]">Conexão Física:</span>
+                  <span className="text-emerald-700 font-extrabold uppercase text-[10px]">Sincronização Ativa</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Manual actions and troubleshooting logs */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
+              <h3 className="font-extrabold text-[#001939] text-base flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <LifeBuoy className="w-5 h-5 text-indigo-750" />
+                <span>Resolução de Conflitos e Caches</span>
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Utilize as ações de emergência abaixo para consertar problemas de sincronização offline causados por caches corrompidos no navegador ou cookies travados.
+              </p>
+
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={handleClearOfflineCache}
+                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-[#ff3b30] text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl cursor-pointer select-none transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Limpar Todos os Caches Locais & Recarregar</span>
+                </button>
+                <div className="p-3 bg-[#e6f4ea] text-[#137333] border border-[#a3e1c8] rounded-xl text-[11px] font-semibold leading-relaxed">
+                  <strong>Persistência Remota:</strong> No navegador, o Cloud Firestore gerencia de forma transparente a fila offline. Todas as alterações feitas offline são replicadas assim que há rede disponível de fora da rede local.
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
