@@ -934,9 +934,6 @@ export default function App() {
     return () => unsubscribe();
   }, [isAuthReady]);
 
-    return () => unsubscribe();
-  }, [isAuthReady]);
-
   // Sync Users from Firestore
   useEffect(() => {
     if (!isAuthReady) return;
