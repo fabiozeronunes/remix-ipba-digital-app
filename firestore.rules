@@ -82,18 +82,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // SUPPORT OPTIONS (dropdown values configured by admins, read by everyone)
-    match /supportOptions/{id} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // SUPPORT TICKETS (private to owner, read/write for admins)
-    match /supportTickets/{id} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isAdmin();
-    }
-
     // NOTIFICATIONS
     match /notifications/{id} {
       allow read: if isSignedIn();

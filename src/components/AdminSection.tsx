@@ -107,7 +107,7 @@ export default function AdminSection({
   propCargos,
   isAuthReady = true
 }: AdminSectionProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'support_options' | 'sync'>(() => {
+  const [activeSubTab, setActiveSubTab] = useState<'events' | 'prayers' | 'treasury' | 'roles' | 'members' | 'cells' | 'live' | 'studies' | 'radio' | 'event_confirmations' | 'sync'>(() => {
     return (localStorage.getItem('church_admin_active_subtab') as any) || 'events';
   });
 
@@ -171,42 +171,12 @@ export default function AdminSection({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: string, action: () => void, name: string } | null>(null);
   const [openCargoDropdownId, setOpenCargoDropdownId] = useState<string | null>(null);
 
-  // Support Feature Admin states
-  const [supportOptionsList, setSupportOptionsList] = useState<SupportOption[]>([]);
-  const [newOptionInput, setNewOptionInput] = useState('');
-  const [supportTicketsList, setSupportTicketsList] = useState<SupportTicket[]>([]);
-
   const isActualAdmin = !!(userCategory && (
     userCategory.includes('Pastor') ||
     userCategory.includes('Presbítero') ||
     userCategory.includes('Coordenador') ||
     userCategory.includes('Admin')
   ));
-
-  useEffect(() => {
-    if (!isAuthReady || !isActualAdmin) return;
-    const unsubscribe = onSnapshot(collection(db, 'supportOptions'), (snapshot) => {
-      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupportOption[];
-      setSupportOptionsList(fetched);
-    }, (error) => {
-      console.error('Support Options fetch error:', error);
-      handleFirestoreError(error, OperationType.LIST, 'supportOptions');
-    });
-    return () => unsubscribe();
-  }, [isAuthReady, isActualAdmin]);
-
-  useEffect(() => {
-    if (!isAuthReady || !isActualAdmin) return;
-    const unsubscribe = onSnapshot(collection(db, 'supportTickets'), (snapshot) => {
-      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupportTicket[];
-      fetched.sort((a,b) => b.createdAt.localeCompare(a.createdAt));
-      setSupportTicketsList(fetched);
-    }, (error) => {
-      console.error('Support Tickets fetch error:', error);
-      handleFirestoreError(error, OperationType.LIST, 'supportTickets');
-    });
-    return () => unsubscribe();
-  }, [isAuthReady, isActualAdmin]);
 
 
   useEffect(() => {
@@ -1551,16 +1521,6 @@ export default function AdminSection({
           <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Rádio 📻</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('support_options')}
-          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all ${
-            activeSubTab === 'support_options' ? 'bg-[#002d5e] text-amber-400 font-extrabold shadow' : 'text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          <LifeBuoy className="w-4 h-4 shrink-0" />
-          <span className="text-[10px] mt-1 font-extrabold uppercase tracking-wide">Erros/Suporte 🛠️</span>
-        </button>
 
         <button
           type="button"
@@ -4314,206 +4274,6 @@ export default function AdminSection({
         </div>
       )}
 
-      {activeSubTab === 'support_options' && (
-        <div className="space-y-6 animate-fade-in text-left">
-          
-          {/* Card: Manage Dropdown Options */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
-            <h3 className="font-extrabold text-[#001939] text-base flex items-center gap-1.5 border-b border-slate-100 pb-2">
-              <LifeBuoy className="w-5 h-5 text-indigo-750 animate-spin-slow" />
-              <span>Gerenciar Opções do Seletor de Erros / Suporte</span>
-            </h3>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Adicione ou remova opções de preenchimento para o seletor "Tipo de Erro / Assunto" que os membros visualizam no formulário de contato de Suporte.
-            </p>
-
-            <form 
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!newOptionInput.trim()) {
-                  onShowAlert("Por favor, digite o título da opção.");
-                  return;
-                }
-                if (supportOptionsList.some(opt => opt.name.toLowerCase() === newOptionInput.trim().toLowerCase())) {
-                  onShowAlert("Esta opção de erro já está cadastrada.");
-                  return;
-                }
-                try {
-                  await addDoc(collection(db, 'supportOptions'), {
-                    name: newOptionInput.trim()
-                  });
-                  onShowAlert(`Opção "${newOptionInput}" criada com sucesso!`);
-                  setNewOptionInput('');
-                } catch (err) {
-                  console.error(err);
-                  onShowAlert("Erro ao criar opção.");
-                }
-              }} 
-              className="flex flex-col sm:flex-row gap-2 max-w-xl"
-            >
-              <input
-                type="text"
-                required
-                placeholder="Ex: Erro no Pix do Dízimo"
-                value={newOptionInput}
-                onChange={(e) => setNewOptionInput(e.target.value)}
-                className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs text-[#191c1d] outline-none font-bold transition-all"
-              />
-              <button
-                type="submit"
-                className="px-6 py-2.5 bg-[#002d5e] hover:bg-slate-800 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl cursor-pointer transition-colors shadow-sm shrink-0 whitespace-nowrap"
-              >
-                + Adicionar Opção
-              </button>
-            </form>
-
-            <div className="space-y-2 pt-2">
-              <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Opções Cadastradas no Banco</h4>
-              {supportOptionsList.length === 0 ? (
-                <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 text-[11px] text-slate-500 italic font-semibold">
-                  Nenhuma opção cadastrada. O app está utilizando as categorias fallback automáticas (Erro de Login, Problemas com Dízimo, etc).
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {supportOptionsList.map((opt) => (
-                    <div key={opt.id} className="flex items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-150 rounded-xl">
-                      <span className="text-xs font-bold text-slate-800 truncate">{opt.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete({
-                          id: opt.id || '',
-                          type: 'Opção de Suporte',
-                          action: async () => {
-                            if (!opt.id) return;
-                            try {
-                              await deleteDoc(doc(db, 'supportOptions', opt.id));
-                              onShowAlert(`Opção "${opt.name}" removida.`);
-                            } catch (err) {
-                              console.error(err);
-                              onShowAlert("Erro ao remover opção.");
-                            }
-                          },
-                          name: opt.name
-                        })}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                        title="Remover opção"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Card: Monitor User Support Tickets */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-extrabold text-[#001939] text-base flex items-center gap-1.5">
-                <FileText className="w-5 h-5 text-indigo-750" />
-                <span>Chamados de Suporte Registrados</span>
-              </h3>
-              <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-sans">
-                {supportTicketsList.length} chamados
-              </span>
-            </div>
-
-            {supportTicketsList.length === 0 ? (
-              <p className="text-slate-500 text-xs italic py-4 text-center">Nenhum chamado de suporte cadastrado no sistema ainda.</p>
-            ) : (
-              <div className="space-y-3">
-                {supportTicketsList.map((ticket) => {
-                  const isResolved = ticket.status === 'Resolvido';
-                  return (
-                    <div 
-                      key={ticket.id} 
-                      className={`p-4 rounded-2xl border transition-all text-xs select-none ${
-                        isResolved ? 'bg-emerald-50/40 border-emerald-150/60 text-slate-700' : 'bg-white border-slate-200/80'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-2">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-black text-sm text-[#001939]">{ticket.name}</span>
-                            <span className="px-2 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-indigo-850 text-[9px] font-black uppercase">
-                              {ticket.category}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-medium block">
-                            Enviado em: {new Date(ticket.createdAt).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                            isResolved 
-                              ? 'bg-emerald-100 border-emerald-250 text-emerald-800' 
-                              : 'bg-amber-100 border-amber-250 text-amber-800'
-                          }`}>
-                            {ticket.status || 'Pendente'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="text-slate-700 leading-relaxed font-medium bg-slate-50/50 p-3 rounded-xl border border-slate-100 whitespace-pre-line mb-3">
-                        {ticket.text}
-                      </p>
-
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!ticket.id) return;
-                            const nextStatus = isResolved ? 'Pendente' : 'Resolvido';
-                            try {
-                              await updateDoc(doc(db, 'supportTickets', ticket.id), { status: nextStatus });
-                              onShowAlert(`Chamado alterado para "${nextStatus}"!`);
-                            } catch (err) {
-                              console.error(err);
-                              onShowAlert("Erro ao atualizar status.");
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border cursor-pointer select-none transition-colors ${
-                            isResolved 
-                              ? 'bg-white hover:bg-amber-50 text-amber-800 border-amber-200' 
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-xs'
-                          }`}
-                        >
-                          {isResolved ? '↩ Reabrir Chamado' : '✔ Marcar como Resolvido'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete({
-                            id: ticket.id || '',
-                            type: 'Chamado de Suporte',
-                            action: async () => {
-                              if (!ticket.id) return;
-                              try {
-                                await deleteDoc(doc(db, 'supportTickets', ticket.id));
-                                onShowAlert("Chamado excluído.");
-                              } catch (err) {
-                                console.error(err);
-                                onShowAlert("Erro ao excluir chamado.");
-                              }
-                            },
-                            name: ticket.name
-                          })}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors border border-rose-100"
-                          title="Excluir Chamado"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
 
       {activeSubTab === 'sync' && (
         <div className="space-y-6 animate-fade-in text-left">

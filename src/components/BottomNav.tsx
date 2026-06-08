@@ -9,7 +9,6 @@ import {
   Users,
   ShieldAlert,
   Home,
-  LifeBuoy
 } from 'lucide-react';
 
 interface BottomNavProps {
@@ -41,7 +40,6 @@ export default function BottomNav({
       ...(!isVisitor ? [{ id: 'estudos', label: 'Estudos', icon: BookOpen }] : []),
       { id: 'eventos', label: 'Eventos', icon: Calendar },
       { id: 'oracao', label: 'Oração', icon: HeartHandshake },
-      { id: 'suporte', label: 'Suporte', icon: LifeBuoy },
     ].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
   ];
 

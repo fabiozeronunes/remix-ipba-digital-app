@@ -16,6 +16,7 @@ export interface User {
   updatedAt?: string;
   notificationPreferences?: Record<string, boolean>;
   readNotificationIds?: string[];
+  fcmTokens?: string[];
 }
 
 export interface PrayerRequest {
@@ -111,21 +112,6 @@ export interface RadioProgram {
   tags?: string[];
   createdAt: string;
   date?: string;
-}
-
-export interface SupportOption {
-  id?: string;
-  name: string;
-}
-
-export interface SupportTicket {
-  id?: string;
-  name: string;
-  email?: string;
-  category: string;
-  text: string;
-  createdAt: string;
-  status?: string;
 }
 
 export interface Notification {
