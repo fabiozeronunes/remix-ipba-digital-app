@@ -31,7 +31,7 @@ import {
 } from './data';
 
 import { auth, db, handleFirestoreError, OperationType, getUserDocId, syncFirebaseAuthWithEmailPassword } from './firebase';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously, updatePassword } from 'firebase/auth';
 import { 
   collection, 
   onSnapshot, 
@@ -1541,6 +1541,28 @@ export default function App() {
       } catch (err) {
         console.error(`[Firestore] Failed to update user ${emailToFind}:`, err);
         handleFirestoreError(err, OperationType.WRITE, 'users');
+      }
+
+      // Maintain Firebase Auth Credentials Sync (keeping physical login and db password in perfect lockstep)
+      const passToSync = updatedUser.password || '';
+      if (passToSync) {
+        const passwordChanged = !user || user.password !== passToSync;
+        if (passwordChanged) {
+          if (auth.currentUser && auth.currentUser.email && auth.currentUser.email.trim().toLowerCase() === emailToFind) {
+            try {
+              await updatePassword(auth.currentUser, passToSync);
+              console.log("[Auth Sync] Firebase Auth password synchronized successfully.");
+            } catch (authErr) {
+              console.warn("[Auth Sync] Direct session password update failed, running full sync fallback:", authErr);
+              await syncFirebaseAuthWithEmailPassword(emailToFind, passToSync);
+            }
+          } else {
+            // Asynchronous update/registration for new members or when current active user session is out of sync
+            syncFirebaseAuthWithEmailPassword(emailToFind, passToSync)
+              .then(() => console.log(`[Auth Sync] Background sync for ${emailToFind} finished.`))
+              .catch(syncErr => console.warn(`[Auth Sync] Background sync failed for ${emailToFind}:`, syncErr));
+          }
+        }
       }
 
       // 1. If we are updating the current logged-in user, update the user state synchronously
