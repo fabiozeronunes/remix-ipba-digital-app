@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import { getMessaging } from 'firebase/messaging';
 import localFirebaseConfig from '../firebase-applet-config.json';
 
 // Support Vercel and other production environments getting config from environment variables easily or falling back to the local json file
@@ -19,7 +18,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth(app);
-export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 export function getUserDocId(email: string): string {
   return email.trim().toLowerCase();

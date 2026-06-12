@@ -32,7 +32,7 @@ import {
   RefreshCw,
   LifeBuoy
 } from 'lucide-react';
-import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram, SupportOption, SupportTicket } from '../types';
+import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram } from '../types';
 import { db, getUserDocId, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, deleteDoc, writeBatch, collection, addDoc, onSnapshot, updateDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
@@ -4524,21 +4524,7 @@ export default function AdminSection({
                     </td>
                   </tr>
 
-                  {/* Suporte Opções Row */}
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 pr-2 text-slate-900 font-extrabold flex items-center gap-2">
-                      <span className="w-2 h-2 rounded bg-slate-500" />
-                      <span>Categorias de Suporte (supportOptions)</span>
-                    </td>
-                    <td className="py-3 px-2">{supportOptionsList.length} opções</td>
-                    <td className="py-3 px-2 text-slate-400">Parâmetros de Triagem</td>
-                    <td className="py-3 px-2 text-slate-500">onSnapshot Realtime</td>
-                    <td className="py-3 pl-2 text-right text-[10px]">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-800 font-black uppercase tracking-wider">
-                        Ativo Realtime
-                      </span>
-                    </td>
-                  </tr>
+
                 </tbody>
               </table>
             </div>

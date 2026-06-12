@@ -16,7 +16,6 @@ export interface User {
   updatedAt?: string;
   notificationPreferences?: Record<string, boolean>;
   readNotificationIds?: string[];
-  fcmTokens?: string[];
 }
 
 export interface PrayerRequest {

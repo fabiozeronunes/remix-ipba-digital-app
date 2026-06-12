@@ -153,7 +153,6 @@ export default function PerfilSection({
   const [regBirth, setRegBirth] = useState('');
   const [regAddress, setRegAddress] = useState('');
   const [regMinistry, setRegMinistry] = useState('');
-  const [regCategory, setRegCategory] = useState('Membro Comungante');
 
   // File Upload Drag & Drop State
   const [isDragging, setIsDragging] = useState(false);
@@ -315,13 +314,13 @@ export default function PerfilSection({
     const newUser: User = {
       name: regName.trim(),
       email: cleanEmail,
-      phone: regPhone.trim() || '(11) 9' + Math.floor(10000000 + Math.random() * 90000000),
+      phone: regPhone.trim(),
       password: regPassword,
-      category: regCategory,
+      category: 'Visitante Frequente',
       avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
       birthDate: regBirth || '1995-01-01',
-      address: regAddress || 'Bairro Jardim',
-      ministry: regMinistry || 'Serviços Gerais / Louvor',
+      address: regAddress.trim(),
+      ministry: regMinistry.trim(),
       planCount: 0,
       prayerCount: 0,
       eventCount: 0,
@@ -582,100 +581,280 @@ export default function PerfilSection({
             className="space-y-6"
             id="perfil-dashboard"
           >
-            {/* Header Identity Card */}
-            <div className="bg-gradient-to-br from-[#002D5E] to-[#001026] text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden" id="card-identidade">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-              
-              <div className="relative group shrink-0">
+            {/* Header Identity Card - Inspired by Image 3 */}
+            <div className="flex flex-col items-center py-6 space-y-4" id="perfil-header-identity">
+              <div className="relative group">
                 <img 
-                  src={user.avatarUrl} 
+                  src={user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} 
                   alt={user.name} 
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white/20 shadow-lg"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl ring-1 ring-slate-100"
                 />
                 <button
                   id="btn-edit-avatar-trigger"
                   onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
-                  className="absolute bottom-0 right-0 bg-[#001939] text-white p-2 rounded-full border border-white/20 hover:scale-105 active:scale-95 shadow-md flex items-center justify-center cursor-pointer"
-                  title="Trocar Foto"
+                  className="absolute bottom-1 right-1 bg-white text-[#001939] p-2.5 rounded-full border border-slate-200 hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center cursor-pointer"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  <Camera className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="text-center md:text-left space-y-2 flex-1">
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                  <span className="px-3 py-1 bg-white/10 border border-white/25 rounded-md text-[10px] uppercase font-black tracking-wider text-amber-300">
-                    {user.category || 'Membro'}
-                  </span>
-                  {user.status && (
-                    <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold ${
-                      user.status === 'Ativo' ? 'bg-emerald-500/25 text-emerald-300' : 'bg-amber-500/25 text-amber-300'
-                    }`}>
-                      {user.status}
-                    </span>
+              <div className="text-center space-y-1">
+                <h2 className="text-3xl font-black text-[#001939] tracking-tight">{user.name}</h2>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 max-w-xs mx-auto">
+                  <span>{user.category || 'MEMBRO'}</span>
+                  {user.ministry && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span>{user.ministry.toUpperCase()}</span>
+                    </>
                   )}
+                  <span className="text-slate-300">•</span>
+                  <span className="text-emerald-600">MEMBRO ATIVO</span>
                 </div>
-                
-                <h2 className="text-2xl font-black tracking-tight uppercase">{user.name}</h2>
-                <p className="text-xs text-slate-300 font-semibold">{user.email}</p>
-                <p className="text-[11px] font-medium font-mono text-[#7b9fcc]">{user.phone || 'Sem Telefone Cadatrado'}</p>
+              </div>
+
+              <button
+                onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
+                className="px-6 py-2 border border-slate-200 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Editar Perfil
+              </button>
+            </div>
+
+            {/* Stats Panel - Inspired by Image 3 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="perfil-stats-cards">
+              {/* Devocional / Leitura */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-900">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-2xl font-black text-slate-900 block leading-none">12</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Dias de Leitura Devocional</span>
+                </div>
+              </div>
+
+              {/* Orações */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-rose-500">
+                  <HeartHandshake className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-2xl font-black text-slate-900 block leading-none">{userPrayersCount}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Pedidos de Oração Ativos</span>
+                </div>
+              </div>
+
+              {/* Eventos */}
+              <div className="bg-[#002D5E] p-5 rounded-3xl border border-[#001939] shadow-lg flex items-center gap-4 col-span-1 md:col-span-2">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-2xl font-black text-white block leading-none">{userEventsCount}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-sky-200 block">Eventos Confirmados</span>
+                </div>
               </div>
             </div>
 
-            {/* Quick Informational Stats */}
-            <div className="grid grid-cols-3 gap-3 md:gap-4" id="perfil-stats-grid">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs text-center space-y-1">
-                <Coins className="w-5 h-5 mx-auto text-[#002D5E]" />
-                <span className="block text-xl font-black text-[#002D5E]">{userContributionsCount}</span>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Dízimos</span>
+            {/* Ficha de Membro Card - Inspired by Image 2 */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-6 shadow-sm" id="card-ficha-membro">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 text-[#002D5E] flex items-center justify-center shadow-sm">
+                    <UserIcon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-black text-[#001939] uppercase tracking-tight">Ficha de Membro</h3>
+                </div>
+                <span className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600">
+                  Cadastro Ativo
+                </span>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs text-center space-y-1">
-                <HeartHandshake className="w-5 h-5 mx-auto text-[#002D5E]" />
-                <span className="block text-xl font-black text-[#002D5E]">{userPrayersCount}</span>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Orações</span>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs text-center space-y-1">
-                <Calendar className="w-5 h-5 mx-auto text-[#002D5E]" />
-                <span className="block text-xl font-black text-[#002D5E]">{userEventsCount}</span>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Atividades</span>
+
+              <div className="space-y-5 px-1">
+                {/* Email */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#002D5E] shrink-0 border border-indigo-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">E-mail</span>
+                    <span className="text-sm font-bold text-slate-800 break-all">{user.email}</span>
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#002D5E] shrink-0 border border-indigo-100">
+                    <Volume2 className="w-5 h-5 rotate-90" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Telefone / WhatsApp</span>
+                    <span className="text-sm font-bold text-slate-800">{user.phone || 'Gere no seu perfil'}</span>
+                  </div>
+                </div>
+
+                {/* Birth Date */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#002D5E] shrink-0 border border-indigo-100">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Data de Nascimento</span>
+                    <span className="text-sm font-bold text-slate-800">
+                      {user.birthDate && user.birthDate !== 'Não Informada' ? (
+                        new Date(user.birthDate + 'T00:00:00').toLocaleDateString('pt-BR')
+                      ) : 'Não informada'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ministry */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#002D5E] shrink-0 border border-indigo-100">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Área / Ministério</span>
+                    <span className="text-sm font-bold text-slate-800">{user.ministry || 'Aguardando vinculação'}</span>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#002D5E] shrink-0 border border-indigo-100">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Endereço Residencial</span>
+                    <span className="text-sm font-bold text-slate-800">{user.address || 'Não cadastrado'}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Details Sheet Section */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 md:p-6 space-y-4" id="perfil-details">
-              <h3 className="text-xs uppercase font-extrabold text-[#002D5E] tracking-wider border-b border-slate-100 pb-2">Ministérios e Cadastro</h3>
+            {/* Navigation List - Inspired by Image 1 */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden shadow-sm" id="perfil-nav-list">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold">
-                <div className="space-y-1">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Ministério Ativo</span>
-                  <p className="text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">{user.ministry || 'Nenhum ministério vinculado.'}</p>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Data de Nascimento</span>
-                  <p className="text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    {user.birthDate && user.birthDate !== 'Não Informada' ? (
-                      new Date(user.birthDate + 'T00:00:00').toLocaleDateString('pt-BR')
-                    ) : 'Data não informada'}
-                  </p>
-                </div>
-
-                <div className="col-span-1 md:col-span-2 space-y-1">
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Endereço Residencial</span>
-                  <p className="text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">{user.address || 'Não cadastrado.'}</p>
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end">
-                <button
-                  id="btn-goto-edit-profile"
-                  onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
-                  className="px-6 py-2.5 bg-[#001939] hover:bg-slate-900 text-white rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+              {/* Admin Access Panel */}
+              {(user.category?.includes('Pastor') || user.category?.includes('Admin') || user.category?.includes('Coordenador')) && (
+                <button 
+                  onClick={() => onNavigate('admin')}
+                  className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Editar Perfil</span>
+                  <div className="w-12 h-12 rounded-2xl bg-[#001939] text-white flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h4 className="text-sm font-black text-[#001939] tracking-tight">Logar como ADMINISTRADOR 🛠️</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Acesso ao Painel Master e Clero</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-amber-500" />
+                </button>
+              )}
+
+              {/* Contributions */}
+              <button 
+                onClick={() => onNavigate('dizimos')}
+                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-[#002D5E] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Coins className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Minhas Contribuições</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userContributionsCount} registros recentes</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-300" />
+              </button>
+
+              {/* Prayer History */}
+              <button 
+                onClick={() => onNavigate('oracao')}
+                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Histórico / Controle de Oração</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{userPrayersCount} pedidos registrados</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-300" />
+              </button>
+
+              {/* Courses & Studies */}
+              <button 
+                onClick={() => onNavigate('estudos')}
+                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-slate-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <UserIcon className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Meus Cursos e Estudos</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Acesse conteúdos exclusivos</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-300" />
+              </button>
+
+              {/* Notifications */}
+              <button 
+                onClick={() => setActiveSubTab('preferencias')}
+                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Bell className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Configurações de Notificações</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gerencie seus avisos e alertas</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-300" />
+              </button>
+
+              {/* Visual Settings */}
+              <div className="w-full p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-slate-700 flex items-center justify-center">
+                  <Moon className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Ajustes Visuais</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{themeMode === 'light' ? 'Tema Claro Ativo' : 'Tema Escuro Ativo'}</p>
+                </div>
+                <button 
+                  onClick={handleToggleTheme}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer ${themeMode === 'dark' ? 'bg-[#001939]' : 'bg-slate-200'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform ${themeMode === 'dark' ? 'translate-x-6' : 'translate-x-0'}`} />
                 </button>
               </div>
+
+              {/* Security */}
+              <button 
+                onClick={() => setActiveSubTab('edit')}
+                className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="text-sm font-black text-[#001939] tracking-tight">Segurança e Senha</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Altere seu acesso e credenciais</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-300" />
+              </button>
+            </div>
+
+            {/* Logout Action */}
+            <div className="pt-4 px-2">
+              <button
+                onClick={onLogout}
+                className="w-full py-4 border-2 border-rose-100 rounded-3xl text-rose-500 font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors cursor-pointer active:scale-[0.98]"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sair da Conta</span>
+              </button>
             </div>
           </motion.div>
         )}
@@ -951,123 +1130,150 @@ export default function PerfilSection({
                 </p>
               </div>
 
-              <form onSubmit={handleRegisterUser} className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleRegisterUser} className="space-y-5 pt-2">
+                <div className="grid grid-cols-1 gap-4">
                   
-                  <div className="space-y-1">
-                    <label htmlFor="reg_name" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Nome Completo *</label>
-                    <input
-                      type="text"
-                      id="reg_name"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Ex: Helena Silveira"
-                      required
-                    />
+                  {/* Name field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="reg_name" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Nome Completo *</label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        id="reg_name"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                        placeholder="Nome e Sobrenome"
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="reg_email" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">E-mail de Login *</label>
-                    <input
-                      type="email"
-                      id="reg_email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Ex: helena@gmail.com"
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Email field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg_email" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">E-mail de Login *</label>
+                      <div className="relative">
+                        <Volume2 className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 rotate-90" /> {/* Using Volume as mail icon placeholder if mail icon is not imported or different, but User want Lucide so user-mail icons */}
+                        <UserIcon className="hidden" /> {/* just to keep context */}
+                        <div className="absolute left-4 top-3.5 text-slate-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        </div>
+                        <input
+                          type="email"
+                          id="reg_email"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                          placeholder="seu@email.com"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Phone field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg_phone" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Celular / WhatsApp *</label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-3.5 text-slate-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </div>
+                        <input
+                          type="text"
+                          id="reg_phone"
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                          placeholder="(00) 00000-0000"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="reg_phone" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Celular / WhatsApp *</label>
-                    <input
-                      type="text"
-                      id="reg_phone"
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Ex: (11) 98888-2222"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Birth Date field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg_birth" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Data de Nascimento *</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                        <input
+                          type="date"
+                          id="reg_birth"
+                          value={regBirth}
+                          onChange={(e) => setRegBirth(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="reg_pwd" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Criar Senha de Acesso *</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                        <input
+                          type="password"
+                          id="reg_pwd"
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                          placeholder="Mínimo 4 dígitos"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="reg_pwd" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Crie uma Senha *</label>
-                    <input
-                      type="password"
-                      id="reg_pwd"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Ex: Mínimo 4 caracteres"
-                      required
-                    />
+                  {/* Address field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="reg_address" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Endereço Residencial *</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        id="reg_address"
+                        value={regAddress}
+                        onChange={(e) => setRegAddress(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                        placeholder="Rua, número, bairro e cidade"
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="reg_birth" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Data de Nascimento</label>
-                    <input
-                      type="date"
-                      id="reg_birth"
-                      value={regBirth}
-                      onChange={(e) => setRegBirth(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                    />
+                  {/* Ministry field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="reg_ministry" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider pl-1">Área / Ministério para servir *</label>
+                    <div className="relative">
+                      <Layers className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        id="reg_ministry"
+                        value={regMinistry}
+                        onChange={(e) => setRegMinistry(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-white transition-all shadow-sm"
+                        placeholder="Ex: Louvor, Mídias, Infantil, etc."
+                        required
+                      />
+                    </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="reg_category" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Ficha de Inscrição como</label>
-                    <select
-                      id="reg_category"
-                      value={regCategory}
-                      onChange={(e) => setRegCategory(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                    >
-                      <option value="Visitante Frequente">Visitante Frequente</option>
-                      <option value="Membro Comungante">Membro Comungante</option>
-                      <option value="Congregado">Congregado</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="reg_ministry" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Ministério que deseja servir (Opcional)</label>
-                    <input
-                      type="text"
-                      id="reg_ministry"
-                      value={regMinistry}
-                      onChange={(e) => setRegMinistry(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Ex: Louvor, Mídias, Infantil, etc."
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="reg_address" className="block text-[10px] font-black text-[#001939] uppercase tracking-wider">Endereço Residencial</label>
-                    <input
-                      type="text"
-                      id="reg_address"
-                      value={regAddress}
-                      onChange={(e) => setRegAddress(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#002D5E] bg-slate-50"
-                      placeholder="Sua rua e bairro"
-                    />
-                  </div>
-
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-between items-center gap-4">
-                  <p className="text-[11px] text-[#002D5E] font-extrabold cursor-pointer flex items-center gap-1 hover:underline" onClick={() => onNavigate('login')}>
+                <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-between items-center gap-6">
+                  <p className="text-[11px] text-[#002D5E] font-black cursor-pointer flex items-center gap-1.5 hover:underline decoration-2 underline-offset-4" onClick={() => onNavigate('login')}>
                     <span>Já possui uma conta existente? Faça login aqui!</span>
-                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                    <ChevronRight className="w-4 h-4 shrink-0" />
                   </p>
                   
                   <button
                     type="submit"
                     id="btn-register-user-submit"
-                    className="w-full sm:w-auto px-8 py-3.5 bg-[#002D5E] hover:bg-slate-900 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-md active:scale-95 transition-all text-center cursor-pointer"
+                    className="w-full sm:w-auto px-10 py-4 bg-[#002D5E] hover:bg-[#001939] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200/50 active:scale-95 transition-all text-center cursor-pointer"
                   >
-                    Registrar Perfil 🚀
+                    Registrar Ficha 🚀
                   </button>
                 </div>
               </form>

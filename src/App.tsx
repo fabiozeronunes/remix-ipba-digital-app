@@ -23,7 +23,6 @@ import EstudosSection from './components/EstudosSection';
 import EventosSection from './components/EventosSection';
 import AdminSection from './components/AdminSection';
 import PerfilSection from './components/PerfilSection';
-import { requestNotificationPermission, onForegroundMessage } from './fcm';
 
 import { User, PrayerRequest, Cell, Contribution, ChurchEvent, ChurchStudy, RadioProgram } from './types';
 import { 
@@ -195,14 +194,6 @@ export default function App() {
   const userRef = useRef<User | null>(user);
   const eventsRef = useRef<ChurchEvent[]>(events);
   const hasMergedLocalUsersRef = useRef(false);
-
-  useEffect(() => {
-    if (user && user.id) {
-      console.log("[FCM] Usuário logado, solicitando permissões de push...");
-      requestNotificationPermission(user.id);
-      onForegroundMessage();
-    }
-  }, [user?.id]);
 
   useEffect(() => {
     userRef.current = user;
