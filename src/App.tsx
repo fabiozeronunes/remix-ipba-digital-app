@@ -1065,31 +1065,56 @@ export default function App() {
               // Bidirectional Smart Sync to prevent loss of password or profile characteristics
               const fbU = mergedList[fbMatchIdx];
               let userModifiedForWeb = false;
-              
-              if (localU.password && !fbU.password) {
-                fbU.password = localU.password;
+
+              // Compare last update timestamps
+              const localTime = localU.updatedAt ? new Date(localU.updatedAt).getTime() : 0;
+              const fbTime = fbU.updatedAt ? new Date(fbU.updatedAt).getTime() : 0;
+
+              if (localTime > fbTime) {
+                // If local storage has a newer update, overwrite online fields with local values
+                Object.assign(fbU, {
+                  ...localU,
+                  id: fbU.id || localU.id
+                });
                 userModifiedForWeb = true;
-              }
-              if (localU.password && fbU.password && localU.password !== fbU.password) {
-                // If local password was updated to a custom one while online is default, merge online
-                if (localU.password !== '123' && fbU.password === '123') {
+              } else {
+                // Individual fallback updates if online timestamp is not strictly older
+                if (localU.password && !fbU.password) {
                   fbU.password = localU.password;
                   userModifiedForWeb = true;
                 }
+                if (localU.password && fbU.password && localU.password !== fbU.password) {
+                  if (localU.password !== '123' && fbU.password === '123') {
+                    fbU.password = localU.password;
+                    userModifiedForWeb = true;
+                  }
+                }
+                if (localU.phone && !fbU.phone) {
+                  fbU.phone = localU.phone;
+                  userModifiedForWeb = true;
+                }
+                if (localU.address && !fbU.address) {
+                  fbU.address = localU.address;
+                  userModifiedForWeb = true;
+                }
+                if (localU.birthDate && !fbU.birthDate) {
+                  fbU.birthDate = localU.birthDate;
+                  userModifiedForWeb = true;
+                }
+                if (localU.ministry && !fbU.ministry) {
+                  fbU.ministry = localU.ministry;
+                  userModifiedForWeb = true;
+                }
+                if (localU.category && !fbU.category) {
+                  fbU.category = localU.category;
+                  userModifiedForWeb = true;
+                }
+                if (localU.avatarUrl && !fbU.avatarUrl) {
+                  fbU.avatarUrl = localU.avatarUrl;
+                  userModifiedForWeb = true;
+                }
               }
-              if (localU.phone && !fbU.phone) {
-                fbU.phone = localU.phone;
-                userModifiedForWeb = true;
-              }
-              if (localU.address && !fbU.address) {
-                fbU.address = localU.address;
-                userModifiedForWeb = true;
-              }
-              if (localU.birthDate && !fbU.birthDate) {
-                fbU.birthDate = localU.birthDate;
-                userModifiedForWeb = true;
-              }
-              
+
               if (userModifiedForWeb) {
                 const docId = getUserDocId(fbU.email || '');
                 batch.set(doc(db, 'users', docId), fbU, { merge: true });
