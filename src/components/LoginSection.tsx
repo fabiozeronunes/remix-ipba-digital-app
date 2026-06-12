@@ -401,7 +401,8 @@ export default function LoginSection({ onLoginSuccess, onShowAlert, dbUsers, onA
       ministry: 'Nenhum',
       address: '',
       birthDate: '',
-      status: 'Pendente'
+      status: 'Pendente',
+      updatedAt: new Date().toISOString()
     };
 
     try {

@@ -1071,12 +1071,32 @@ export default function App() {
               const fbTime = fbU.updatedAt ? new Date(fbU.updatedAt).getTime() : 0;
 
               if (localTime > fbTime) {
-                // If local storage has a newer update, overwrite online fields with local values
-                Object.assign(fbU, {
-                  ...localU,
-                  id: fbU.id || localU.id
+                // If local storage has a newer update, merge local values safely without blanking out rich online fields
+                const keysToMerge: (keyof User)[] = ['name', 'phone', 'category', 'avatarUrl', 'status', 'ministry', 'address', 'birthDate', 'password'];
+                keysToMerge.forEach(key => {
+                  const localVal = localU[key];
+                  const fbVal = fbU[key];
+                  
+                  // Only overwrite if localVal is truthy and non-empty, OR if fbVal is empty/falsy
+                  const isLocalValValid = (typeof localVal === 'string') ? localVal.trim() !== '' : (localVal !== undefined && localVal !== null);
+                  const isFbValEmpty = (typeof fbVal === 'string') ? fbVal.trim() === '' : (fbVal === undefined || fbVal === null);
+                  
+                  if (isLocalValValid || isFbValEmpty) {
+                    if (localVal !== undefined && fbU[key] !== localVal) {
+                      (fbU as any)[key] = localVal;
+                      userModifiedForWeb = true;
+                    }
+                  }
                 });
-                userModifiedForWeb = true;
+                
+                if (localU.id && fbU.id !== localU.id) {
+                  fbU.id = localU.id;
+                  userModifiedForWeb = true;
+                }
+                if (localU.updatedAt && fbU.updatedAt !== localU.updatedAt) {
+                  fbU.updatedAt = localU.updatedAt;
+                  userModifiedForWeb = true;
+                }
               } else {
                 // Individual fallback updates if online timestamp is not strictly older
                 if (localU.password && !fbU.password) {
@@ -1162,7 +1182,10 @@ export default function App() {
         const hasDifference = keysToCompare.some(k => match[k] !== user[k]);
         if (hasDifference) {
           // If the Firestore snapshot contains a stale updatedAt timestamp, do not override our newer local state.
-          if (match.updatedAt && user.updatedAt && match.updatedAt < user.updatedAt) {
+          const localTime = user.updatedAt ? new Date(user.updatedAt).getTime() : 0;
+          const fbTime = match.updatedAt ? new Date(match.updatedAt).getTime() : 0;
+          
+          if (localTime > fbTime) {
             console.log("[Sync] Postponing real-time sync wrapper, local state is newer than Firestore snapshot match.");
             return;
           }

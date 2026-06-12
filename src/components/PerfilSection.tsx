@@ -158,8 +158,31 @@ export default function PerfilSection({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize edit fields when user is set or changed
+  const [lastUserId, setLastUserId] = useState<string | null>(null);
+
+  // Initialize edit fields when user is logged in or changed (but do not kick them out of subtab when they are inside)
   useEffect(() => {
+    if (user) {
+      const uId = user.email || user.name;
+      if (lastUserId !== uId) {
+        setEditName(user.name || '');
+        setEditPhone(user.phone || '');
+        setEditBirthDate(user.birthDate || '');
+        setEditAddress(user.address || '');
+        setEditMinistry(user.ministry || '');
+        setEditCategory(user.category || 'Membro Comungante');
+        setEditAvatarUrl(user.avatarUrl || '');
+        setEditPassword(user.password || '');
+        setLastUserId(uId);
+        setActiveSubTab('perfil');
+      }
+    } else {
+      setLastUserId(null);
+      setActiveSubTab('cadastro');
+    }
+  }, [user, lastUserId]);
+
+  const handleStartEditing = () => {
     if (user) {
       setEditName(user.name || '');
       setEditPhone(user.phone || '');
@@ -169,11 +192,9 @@ export default function PerfilSection({
       setEditCategory(user.category || 'Membro Comungante');
       setEditAvatarUrl(user.avatarUrl || '');
       setEditPassword(user.password || '');
-      setActiveSubTab('perfil');
-    } else {
-      setActiveSubTab('cadastro');
     }
-  }, [user]);
+    setActiveSubTab('edit');
+  };
 
   // Handle application sound effects simulation
   const playClickSound = () => {
@@ -324,7 +345,8 @@ export default function PerfilSection({
       planCount: 0,
       prayerCount: 0,
       eventCount: 0,
-      status: 'Ativo'
+      status: 'Ativo',
+      updatedAt: new Date().toISOString()
     };
 
     onUpdateUser(newUser, cleanEmail);
@@ -349,6 +371,16 @@ export default function PerfilSection({
 
     if (!editName.trim()) {
       onShowAlert("O nome não pode ficar em branco!");
+      return;
+    }
+
+    if (!editPhone.trim()) {
+      onShowAlert("O campo celular é obrigatório!");
+      return;
+    }
+
+    if (!editBirthDate || !editBirthDate.trim()) {
+      onShowAlert("A data de nascimento é obrigatória!");
       return;
     }
 
@@ -528,7 +560,7 @@ export default function PerfilSection({
 
             <button
               id="subtab-edit"
-              onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
+              onClick={() => { playClickSound(); handleStartEditing(); }}
               className={`flex-1 py-3 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
                 activeSubTab === 'edit'
                   ? 'bg-[#002D5E] text-white shadow-md'
@@ -589,13 +621,6 @@ export default function PerfilSection({
                   alt={user.name} 
                   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl ring-1 ring-slate-100"
                 />
-                <button
-                  id="btn-edit-avatar-trigger"
-                  onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
-                  className="absolute bottom-1 right-1 bg-white text-[#001939] p-2.5 rounded-full border border-slate-200 hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
               </div>
 
               <div className="text-center space-y-1">
@@ -612,13 +637,6 @@ export default function PerfilSection({
                   <span className="text-emerald-600">MEMBRO ATIVO</span>
                 </div>
               </div>
-
-              <button
-                onClick={() => { playClickSound(); setActiveSubTab('edit'); }}
-                className="px-6 py-2 border border-slate-200 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
-              >
-                Editar Perfil
-              </button>
             </div>
 
             {/* Stats Panel - Inspired by Image 3 */}
@@ -832,7 +850,7 @@ export default function PerfilSection({
 
               {/* Security */}
               <button 
-                onClick={() => setActiveSubTab('edit')}
+                onClick={() => handleStartEditing()}
                 className="w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform">
